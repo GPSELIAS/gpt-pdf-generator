@@ -21,7 +21,7 @@ class DocumentRequest(BaseModel):
     title: str
     subtitle: str
     content: str
-
+    template: str = "document"
 
 @app.get("/health")
 def health():
@@ -33,7 +33,10 @@ def _render_pdf_bytes(req: DocumentRequest) -> bytes:
     Renders master.html with data and converts it to PDF bytes using WeasyPrint.
     """
     try:
-        template = env.get_template("master.html")
+        if req.template == "rapport":
+    template = env.get_template("rapport.html")
+else:
+    template = env.get_template("master.html")
     except TemplateNotFound:
         raise HTTPException(
             status_code=500,
