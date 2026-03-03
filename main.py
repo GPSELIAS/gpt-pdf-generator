@@ -12,6 +12,7 @@ env = Environment(loader=FileSystemLoader("templates"))
 
 class DocumentRequest(BaseModel):
     title: str
+    subtitle: str
     content: str
 
 @app.post("/generate")
@@ -22,15 +23,22 @@ def generate_document(
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    template = env.get_template("document.html")
+    template = env.get_template("master.html")
 
     rendered_html = template.render(
         title=request.title,
+        subtitle=request.subtitle,
+        tagline="Strategisches Dokument",
+        section_title="Inhalt",
         content=request.content,
+        callout="Dieses Dokument ist vertraulich.",
         date=datetime.now().strftime("%d.%m.%Y")
     )
 
-    pdf = HTML(string=rendered_html).write_pdf()
+    pdf = HTML(
+        string=rendered_html,
+        base_url="."
+    ).write_pdf()
 
     return Response(
         content=pdf,

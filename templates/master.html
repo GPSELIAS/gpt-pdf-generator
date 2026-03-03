@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+
+<style>
+
+@page {
+    size: A4;
+    margin: 25mm 22mm 25mm 22mm;
+
+    @bottom-center {
+        content: "Seite " counter(page);
+        font-size: 10px;
+        color: #6B7280;
+    }
+}
+
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #1A1A1A;
+    font-size: 11pt;
+}
+
+/* HEADER IMAGE (COVER ONLY) */
+.cover-header {
+    width: 100%;
+}
+
+/* COVER SECTION */
+.cover {
+    text-align: center;
+    margin-top: 40mm;
+}
+
+.cover-title {
+    font-size: 26pt;
+    font-weight: bold;
+    margin-top: 25mm;
+}
+
+.cover-subtitle {
+    font-size: 18pt;
+    color: #0B4F8A;
+    margin-top: 10mm;
+}
+
+.cover-meta {
+    margin-top: 15mm;
+    font-size: 10pt;
+    color: #6B7280;
+}
+
+/* SECTION HEADINGS */
+h1 {
+    font-size: 18pt;
+    margin-top: 20mm;
+    margin-bottom: 6mm;
+    border-bottom: 2px solid #E5E7EB;
+    padding-bottom: 4mm;
+}
+
+h2 {
+    font-size: 14pt;
+    margin-top: 10mm;
+    margin-bottom: 4mm;
+    color: #0B4F8A;
+}
+
+/* BODY */
+p {
+    line-height: 1.6;
+    margin-bottom: 6mm;
+}
+
+/* CALLOUT BOX */
+.callout {
+    background-color: #F5F7FB;
+    border-left: 4px solid #0B4F8A;
+    padding: 10mm;
+    margin: 8mm 0;
+}
+
+/* FOOTER LOGO */
+.footer-logo {
+    position: fixed;
+    bottom: 15mm;
+    right: 22mm;
+    width: 20mm;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- COVER -->
+<div>
+    <img src="../assets/nisterheaderbild.png" class="cover-header">
+</div>
+
+<div class="cover">
+    <div class="cover-title">{{ title }}</div>
+    <div class="cover-subtitle">{{ subtitle }}</div>
+    <div class="cover-meta">
+        {{ tagline }}<br>
+        Stand: {{ date }}
+    </div>
+</div>
+
+<div style="page-break-after: always;"></div>
+
+<!-- CONTENT -->
+<h1>{{ section_title }}</h1>
+
+<p>{{ content }}</p>
+
+<div class="callout">
+{{ callout }}
+</div>
+
+<img src="../assets/gpsholding.png" class="footer-logo">
+
+</body>
+</html>
