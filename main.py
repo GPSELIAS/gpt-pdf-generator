@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Response, Header, HTTPException
 from pydantic import BaseModel
-import os
 
 app = FastAPI()
 
@@ -13,7 +12,7 @@ class DocumentRequest(BaseModel):
 @app.post("/generate")
 def generate_document(
     data: DocumentRequest,
-    x_api_key: str = Header(None)
+    x_api_key: str = Header(..., description="API Key required")
 ):
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
