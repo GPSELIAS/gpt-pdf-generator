@@ -1,68 +1,55 @@
 import os
-from typing import Optional
 from datetime import datetime
-
 from fastapi import FastAPI, Response, Header, HTTPException
 from pydantic import BaseModel
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML
 
-app = FastAPI(title="PDF Generator", version="1.0.0")
+CLOUD_RUN_BASE_URL = "https://pdf-generator-993720113169.europe-west6.run.app"  # <- DEINE URL
 
-# API Key (für Actions)
-API_KEY = os.getenv("API_KEY", "gps_2026_internal_secure_key")
-
-# Pfade
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
-
-env = Environment(
-    loader=FileSystemLoader(TEMPLATES_DIR),
-    autoescape=select_autoescape(["html", "xml"])
+app = FastAPI(
+    title="PDF Generator API",
+    version="1.0.0",
+    servers=[{"url": CLOUD_RUN_BASE_URL}],
 )
+
+API_KEY = "gps_2026_internal_secure_key"
+env = Environment(loader=FileSystemLoader("templates"))
 
 class DocumentRequest(BaseModel):
     title: str
-    subtitle: Optional[str] = None
+    subtitle: str
     content: str
 
-    # Optional: falls du später weitere Felder brauchst:
-    tagline: Optional[str] = "Strategisches Dokument"
-    section_title: Optional[str] = "Inhalt"
-    callout: Optional[str] = "Dieses Dokument ist vertraulich."
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-
-@app.post("/generate")
-def generate_document(
-    request: DocumentRequest,
-    x_api_key: Optional[str] = Header(None)
-):
-    # Auth
+@app.post(
+    "/generate",
+    summary="Generate Document (PDF)",
+    responses={
+        200: {
+            "description": "PDF file",
+            "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
+        }
+    },
+)
+def generate_document(request: DocumentRequest, x_api_key: str = Header(None)):
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Template rendern
     template = env.get_template("master.html")
     rendered_html = template.render(
         title=request.title,
-        subtitle=request.subtitle or "",
-        tagline=request.tagline or "",
-        section_title=request.section_title or "Inhalt",
+        subtitle=request.subtitle,
+        tagline="Strategisches Dokument",
+        section_title="Inhalt",
         content=request.content,
-        callout=request.callout or "",
-        date=datetime.now().strftime("%d.%m.%Y")
+        callout="Dieses Dokument ist vertraulich.",
+        date=datetime.now().strftime("%d.%m.%Y"),
     )
 
-    # base_url muss auf Projektverzeichnis zeigen, damit relative Pfade (assets/...) funktionieren
-    pdf_bytes = HTML(string=rendered_html, base_url=BASE_DIR).write_pdf()
+    pdf_bytes = HTML(string=rendered_html, base_url=".").write_pdf()
 
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": "inline; filename=document.pdf"}
+        headers={"Content-Disposition": "attachment; filename=document.pdf"},
     )
