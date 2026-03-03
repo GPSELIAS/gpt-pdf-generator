@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+
+@page {
+    size: A4;
+    margin: 40px;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    color: #222;
+}
+
+.header {
+    border-bottom: 2px solid #000;
+    padding-bottom: 10px;
+    margin-bottom: 30px;
+}
+
+.logo {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.title {
+    font-size: 28px;
+    margin-top: 20px;
+}
+
+.meta {
+    margin-top: 5px;
+    color: grey;
+    font-size: 12px;
+}
+
+.content {
+    margin-top: 40px;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+.footer {
+    position: fixed;
+    bottom: 20px;
+    left: 40px;
+    right: 40px;
+    font-size: 10px;
+    color: grey;
+    border-top: 1px solid #ddd;
+    padding-top: 5px;
+}
+
+.page-number:after {
+    content: "Seite " counter(page);
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <div class="logo">GPS Group Holding</div>
+    <div class="meta">Erstellt am {{ date }}</div>
+</div>
+
+<div class="title">
+    {{ title }}
+</div>
+
+<div class="content">
+    {{ content }}
+</div>
+
+<div class="footer">
+    <span class="page-number"></span>
+</div>
+
+</body>
+</html>
