@@ -1,69 +1,49 @@
-from __future__ import annotations
-
-import os
-import uuid
-from datetime import datetime
-from pathlib import Path
-from typing import Literal
-
-from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
-from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
+from fastapi import FastAPI, Response, HTTPException, Header
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from weasyprint import HTML
+from datetime import datetime
+import base64
+import os
+from typing import Optional, Literal
 
-# ----------------------------
-# Config
-# ----------------------------
-BASE_URL = "https://pdf-generator-993720113169.europe-west6.run.app"
-API_KEY = os.getenv("API_KEY", "gps_2026_internal_secure_key")
+app = FastAPI(title="PDF Generator", version="1.0.0")
 
-BASE_DIR = Path(__file__).resolve().parent
-TEMPLATES_DIR = BASE_DIR / "templates"
-TMP_DIR = Path("/tmp/pdfs")  # Cloud Run writable temp
-TMP_DIR.mkdir(parents=True, exist_ok=True)
+env = Environment(loader=FileSystemLoader("templates"))
 
-# ----------------------------
-# App
-# ----------------------------
-app = FastAPI(
-    title="PDF Generator",
-    version="1.0.0",
-    servers=[{"url": BASE_URL}],
-)
+PDF_API_KEY = os.getenv("PDF_API_KEY")  # set in Cloud Run env vars
 
-env = Environment(
-    loader=FileSystemLoader(str(TEMPLATES_DIR)),
-    autoescape=select_autoescape(["html", "xml"]),
-)
-
-# ----------------------------
-# Models
-# ----------------------------
-TemplateType = Literal["document", "rapport"]
 
 class DocumentRequest(BaseModel):
     title: str
     subtitle: str
     content: str
-    template: TemplateType = "document"
+    template: Literal["document", "rapport"] = "document"
 
 
-# ----------------------------
-# Helpers
-# ----------------------------
-def _require_api_key(x_api_key: str | None) -> None:
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="No Api Key or Invalid Key")
+@app.get("/health")
+def health():
+    return {"ok": True}
 
-def _pick_template(req: DocumentRequest) -> str:
-    return "rapport.html" if req.template == "rapport" else "master.html"
+
+def _require_api_key(x_api_key: Optional[str]):
+    # If you want "no key required", just return here.
+    if not PDF_API_KEY:
+        raise HTTPException(status_code=500, detail="Server not configured: PDF_API_KEY not set")
+    if not x_api_key or x_api_key != PDF_API_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden: missing or invalid API key")
+
 
 def _render_pdf_bytes(req: DocumentRequest) -> bytes:
     try:
-        template = env.get_template(_pick_template(req))
-    except TemplateNotFound as e:
-        raise HTTPException(status_code=500, detail=f"Template not found: {e}")
+        template_name = "rapport.html" if req.template == "rapport" else "master.html"
+        template = env.get_template(template_name)
+    except TemplateNotFound:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Template not found: templates/{template_name} (is it included in the container?)",
+        )
 
     rendered_html = template.render(
         title=req.title,
@@ -76,90 +56,34 @@ def _render_pdf_bytes(req: DocumentRequest) -> bytes:
     )
 
     try:
-        # base_url MUST point to project root so relative assets (assets/..., css/...) resolve
-        return HTML(string=rendered_html, base_url=str(BASE_DIR)).write_pdf()
+        base_url = os.getcwd()
+        return HTML(string=rendered_html, base_url=base_url).write_pdf()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF rendering failed: {e}")
 
-def _safe_filename(name: str) -> str:
-    # minimal safe filename (no slashes)
-    return "".join(c for c in name if c.isalnum() or c in ("-", "_", ".", " ")).strip() or "document.pdf"
+
+# ✅ Action endpoint: returns REAL PDF bytes (so ChatGPT can offer direct download)
+@app.post("/generate")
+def generate_pdf(request: DocumentRequest, x_api_key: Optional[str] = Header(default=None, alias="x-api-key")):
+    _require_api_key(x_api_key)
+    pdf_bytes = _render_pdf_bytes(request)
+
+    filename = "rapport.pdf" if request.template == "rapport" else "document.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
-# ----------------------------
-# Routes
-# ----------------------------
-@app.get("/health")
-def health():
-    return {"ok": True}
-
+# ✅ Optional: keep base64 JSON endpoint (useful for non-ChatGPT clients)
 @app.post("/generate_document")
-def generate_document(
-    request: DocumentRequest,
-    x_api_key: str | None = Header(None, alias="x-api-key"),
-):
-    """
-    GPT Actions endpoint: returns JSON with a download_url (no base64 needed).
-    """
+def generate_document_base64(request: DocumentRequest, x_api_key: Optional[str] = Header(default=None, alias="x-api-key")):
     _require_api_key(x_api_key)
-
     pdf_bytes = _render_pdf_bytes(request)
+    pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
-    file_id = uuid.uuid4().hex
-    stored_name = f"{file_id}.pdf"
-    file_path = TMP_DIR / stored_name
-
-    file_path.write_bytes(pdf_bytes)
-
-    # optional: nicer visible filename
-    pretty = _safe_filename(f"{request.title}.pdf")
-
+    filename = "rapport.pdf" if request.template == "rapport" else "document.pdf"
     return JSONResponse(
-        {
-            "filename": pretty,
-            "content_type": "application/pdf",
-            "download_url": f"{BASE_URL}/download/{stored_name}?name={pretty}",
-        }
-    )
-
-@app.get("/download/{stored_name}")
-def download(
-    stored_name: str,
-    name: str | None = None,
-):
-    """
-    Browser download endpoint. Files live in /tmp (ephemeral on Cloud Run).
-    """
-    file_path = TMP_DIR / stored_name
-    if not file_path.is_file():
-        raise HTTPException(status_code=404, detail="File not found")
-
-    out_name = _safe_filename(name or "document.pdf")
-
-    return FileResponse(
-        path=str(file_path),
-        media_type="application/pdf",
-        filename=out_name,
-    )
-
-# Optional: keep your direct-PDF endpoint for humans/testing
-@app.post("/generate_pdf")
-def generate_pdf(
-    request: DocumentRequest,
-    x_api_key: str | None = Header(None, alias="x-api-key"),
-):
-    _require_api_key(x_api_key)
-    pdf_bytes = _render_pdf_bytes(request)
-
-    out_name = _safe_filename(f"{request.title}.pdf")
-    # Save once so relative assets behaviour matches download endpoint
-    file_id = uuid.uuid4().hex
-    stored_name = f"{file_id}.pdf"
-    file_path = TMP_DIR / stored_name
-    file_path.write_bytes(pdf_bytes)
-
-    return FileResponse(
-        path=str(file_path),
-        media_type="application/pdf",
-        filename=out_name,
+        {"filename": filename, "content_type": "application/pdf", "pdf_base64": pdf_b64}
     )
