@@ -10,83 +10,87 @@ import os
 app = FastAPI(
     title="PDF Generator",
     version="1.0.0",
-    servers=[
-        {"url": "https://pdf-generator-993720113169.europe-west6.run.app"}
-    ],
+    servers=[{"url": "https://pdf-generator-993720113169.europe-west6.run.app"}],
 )
 
-API_KEY = "gps_2026_internal_secure_key"
+# ✅ Never hardcode secrets in code for Cloud Run. Use env / Secret Manager.
+API_KEY = os.environ.get("PDF_API_KEY")  # set in Cloud Run
 
 env = Environment(loader=FileSystemLoader("templates"))
+
 
 class DocumentRequest(BaseModel):
     title: str
     subtitle: str
     content: str
 
+
 @app.get("/health")
 def health():
     return {"ok": True}
 
-@app.post("/generate")
-def generate_document(
-    request: DocumentRequest,
-    x_api_key: str = Header(None)
-):
-    # API Key check
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="No Api Key or Invalid Key")
 
+def _require_api_key(x_api_key: str | None):
+    # If you forgot to set PDF_API_KEY in Cloud Run, fail loudly (500)
+    if not API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="Server misconfigured: PDF_API_KEY is not set",
+        )
+    if not x_api_key or x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="No API Key or Invalid Key")
+
+
+def _render_pdf_bytes(req: DocumentRequest) -> bytes:
     template = env.get_template("master.html")
 
     rendered_html = template.render(
-        title=request.title,
-        subtitle=request.subtitle,
+        title=req.title,
+        subtitle=req.subtitle,
         tagline="Strategisches Dokument",
         section_title="Inhalt",
-        content=request.content,
+        content=req.content,
         callout="Dieses Dokument ist vertraulich.",
-        date=datetime.now().strftime("%d.%m.%Y")
+        date=datetime.now().strftime("%d.%m.%Y"),
     )
 
-    # base_url MUST point to app root so relative assets work if needed
+    # base_url MUST point to app root so relative assets work (css/images)
     base_url = os.getcwd()
+    return HTML(string=rendered_html, base_url=base_url).write_pdf()
 
-    pdf_bytes = HTML(string=rendered_html, base_url=base_url).write_pdf()
 
-    # Return JSON (Actions can parse this)
+# ✅ Primary endpoint for GPT Actions / API clients: returns JSON with base64 PDF
+@app.post("/generate_document")
+def generate_document(
+    request: DocumentRequest,
+    x_api_key: str | None = Header(default=None, alias="x-api-key"),
+):
+    _require_api_key(x_api_key)
+
+    pdf_bytes = _render_pdf_bytes(request)
     pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
-    return JSONResponse({
-        "filename": "document.pdf",
-        "content_type": "application/pdf",
-        "pdf_base64": pdf_b64
-    })
+    return JSONResponse(
+        {
+            "filename": "document.pdf",
+            "content_type": "application/pdf",
+            "pdf_base64": pdf_b64,
+        }
+    )
 
-# Optional: browser-friendly download endpoint (NOT for Actions, just for humans)
+
+# ✅ Optional: browser-friendly direct PDF download (humans, not Actions)
 @app.post("/generate_pdf")
 def generate_document_pdf(
     request: DocumentRequest,
-    x_api_key: str = Header(None)
+    x_api_key: str | None = Header(default=None, alias="x-api-key"),
 ):
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="No Api Key or Invalid Key")
+    _require_api_key(x_api_key)
 
-    template = env.get_template("master.html")
-    rendered_html = template.render(
-        title=request.title,
-        subtitle=request.subtitle,
-        tagline="Strategisches Dokument",
-        section_title="Inhalt",
-        content=request.content,
-        callout="Dieses Dokument ist vertraulich.",
-        date=datetime.now().strftime("%d.%m.%Y")
-    )
-
-    pdf_bytes = HTML(string=rendered_html, base_url=os.getcwd()).write_pdf()
+    pdf_bytes = _render_pdf_bytes(request)
 
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=document.pdf"}
+        headers={"Content-Disposition": "attachment; filename=document.pdf"},
     )
