@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Response, Header, HTTPException
+from fastapi import FastAPI, Response, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from weasyprint import HTML
 from datetime import datetime
 import base64
@@ -13,9 +13,7 @@ app = FastAPI(
     servers=[{"url": "https://pdf-generator-993720113169.europe-west6.run.app"}],
 )
 
-# ✅ Never hardcode secrets in code for Cloud Run. Use env / Secret Manager.
-API_KEY = os.environ.get("PDF_API_KEY")  # set in Cloud Run
-
+# Templates live in ./templates (must be included in the container image)
 env = Environment(loader=FileSystemLoader("templates"))
 
 
@@ -30,19 +28,17 @@ def health():
     return {"ok": True}
 
 
-def _require_api_key(x_api_key: str | None):
-    # If you forgot to set PDF_API_KEY in Cloud Run, fail loudly (500)
-    if not API_KEY:
+def _render_pdf_bytes(req: DocumentRequest) -> bytes:
+    """
+    Renders master.html with data and converts it to PDF bytes using WeasyPrint.
+    """
+    try:
+        template = env.get_template("master.html")
+    except TemplateNotFound:
         raise HTTPException(
             status_code=500,
-            detail="Server misconfigured: PDF_API_KEY is not set",
+            detail="Template not found: templates/master.html (is it included in the container?)",
         )
-    if not x_api_key or x_api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="No API Key or Invalid Key")
-
-
-def _render_pdf_bytes(req: DocumentRequest) -> bytes:
-    template = env.get_template("master.html")
 
     rendered_html = template.render(
         title=req.title,
@@ -54,19 +50,17 @@ def _render_pdf_bytes(req: DocumentRequest) -> bytes:
         date=datetime.now().strftime("%d.%m.%Y"),
     )
 
-    # base_url MUST point to app root so relative assets work (css/images)
-    base_url = os.getcwd()
-    return HTML(string=rendered_html, base_url=base_url).write_pdf()
+    try:
+        # base_url points to app root so relative assets (css/images) can resolve
+        base_url = os.getcwd()
+        return HTML(string=rendered_html, base_url=base_url).write_pdf()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF rendering failed: {e}")
 
 
-# ✅ Primary endpoint for GPT Actions / API clients: returns JSON with base64 PDF
+# ✅ Public endpoint for GPT Actions / API clients: returns JSON with base64 PDF
 @app.post("/generate_document")
-def generate_document(
-    request: DocumentRequest,
-    x_api_key: str | None = Header(default=None, alias="x-api-key"),
-):
-    _require_api_key(x_api_key)
-
+def generate_document(request: DocumentRequest):
     pdf_bytes = _render_pdf_bytes(request)
     pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
@@ -79,14 +73,9 @@ def generate_document(
     )
 
 
-# ✅ Optional: browser-friendly direct PDF download (humans, not Actions)
+# ✅ Optional: browser-friendly direct PDF download (humans)
 @app.post("/generate_pdf")
-def generate_document_pdf(
-    request: DocumentRequest,
-    x_api_key: str | None = Header(default=None, alias="x-api-key"),
-):
-    _require_api_key(x_api_key)
-
+def generate_document_pdf(request: DocumentRequest):
     pdf_bytes = _render_pdf_bytes(request)
 
     return Response(
