@@ -1,16 +1,16 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from weasyprint import HTML
 from datetime import datetime, timezone, timedelta
-from typing import Literal, Optional
+from typing import Literal
 import base64
 import os
 import uuid
 
-from google.cloud import storage  # MUST be in requirements.txt
-
+from google.cloud import storage
+import google.auth
 
 app = FastAPI(title="PDF Generator", version="2.0.0")
 
@@ -28,7 +28,6 @@ class PdfLinkResponse(BaseModel):
     filename: str
     content_type: str = "application/pdf"
     url: str
-    expires_at_utc: str
 
 
 def _now_stamp() -> str:
@@ -63,39 +62,35 @@ def _render_pdf_bytes(req: DocumentRequest) -> bytes:
         raise HTTPException(status_code=500, detail=f"PDF rendering failed: {e}")
 
 
-def _gcs_upload_and_signed_url(pdf_bytes: bytes, filename: str) -> PdfLinkResponse:
+def _gcs_upload_and_get_signed_url(pdf_bytes: bytes, filename: str) -> str:
     bucket_name = os.getenv("PDF_BUCKET")
     if not bucket_name:
         raise HTTPException(status_code=500, detail="Server configuration: PDF_BUCKET env var is not set")
 
-    # TTL in minutes (default 60)
-    ttl_minutes = int(os.getenv("PDF_URL_TTL_MINUTES", "60"))
-    expires = datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes)
-
     try:
-        client = storage.Client()
+        # Use Cloud Run default credentials
+        creds, _ = google.auth.default()
+        client = storage.Client(credentials=creds)
+
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(filename)
-
         blob.content_type = "application/pdf"
+
         blob.upload_from_string(pdf_bytes, content_type="application/pdf")
 
-        # Signed URL (works even if bucket is NOT public)
+        # IMPORTANT:
+        # Do NOT call blob.make_public() because UBLA forbids legacy ACLs.
+        # Instead: return a time-limited signed URL.
+        ttl_minutes = int(os.getenv("PDF_URL_TTL_MINUTES", "30"))
         url = blob.generate_signed_url(
             version="v4",
             expiration=timedelta(minutes=ttl_minutes),
             method="GET",
-            response_type="application/pdf",
-            response_disposition=f'attachment; filename="{filename}"',
         )
+        return url
 
-        return PdfLinkResponse(
-            filename=filename,
-            url=url,
-            expires_at_utc=expires.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"GCS upload/signed-url failed: {e}")
+        raise HTTPException(status_code=500, detail=f"GCS upload failed: {e}")
 
 
 @app.get("/health")
@@ -108,43 +103,27 @@ def root():
     return {"service": "pdf-generator", "ok": True}
 
 
-# ✅ Custom GPT endpoint: ALWAYS JSON with a real download URL
+# ✅ MAIN endpoint for Custom GPT: ALWAYS returns JSON {filename, url}
 @app.post("/generate", response_model=PdfLinkResponse)
 def generate(request: DocumentRequest):
     pdf_bytes = _render_pdf_bytes(request)
 
-    base = "rapport" if request.template == "rapport" else "document"
-    filename = f"{base}_{_now_stamp()}_{uuid.uuid4().hex[:8]}.pdf"
+    base_filename = "rapport" if request.template == "rapport" else "document"
+    filename = f"{base_filename}_{_now_stamp()}_{uuid.uuid4().hex[:8]}.pdf"
 
-    return _gcs_upload_and_signed_url(pdf_bytes, filename)
+    url = _gcs_upload_and_get_signed_url(pdf_bytes, filename)
+    return PdfLinkResponse(filename=filename, url=url)
 
 
-# Optional fallback: base64 JSON (NOT data: URL)
+# ✅ Optional base64 endpoint (debug / fallback)
 @app.post("/generate_base64")
 def generate_base64(request: DocumentRequest):
     pdf_bytes = _render_pdf_bytes(request)
     pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
-    base = "rapport" if request.template == "rapport" else "document"
-    filename = f"{base}_{_now_stamp()}_{uuid.uuid4().hex[:8]}.pdf"
+    base_filename = "rapport" if request.template == "rapport" else "document"
+    filename = f"{base_filename}_{_now_stamp()}_{uuid.uuid4().hex[:8]}.pdf"
 
     return JSONResponse(
         {"filename": filename, "content_type": "application/pdf", "pdf_base64": pdf_b64}
-    )
-
-
-# Debug endpoint for curl/browser: returns binary PDF (NOT for Custom GPT)
-@app.post("/generate_binary")
-def generate_binary(request: DocumentRequest):
-    pdf_bytes = _render_pdf_bytes(request)
-    base = "rapport" if request.template == "rapport" else "document"
-    filename = f"{base}_{_now_stamp()}_{uuid.uuid4().hex[:8]}.pdf"
-
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            "Cache-Control": "no-store",
-        },
     )
