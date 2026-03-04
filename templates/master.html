@@ -1,121 +1,784 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
   <meta charset="utf-8" />
+  <title>{{ title }}</title>
+
   <style>
-    @page {
-      size: A4;
-      margin: 24mm 22mm 24mm 22mm;
+    /* =========================
+       BRAND / THEME VARIABLES
+       ========================= */
+    :root{
+      --brand-primary: #1FC2DE;
+      --brand-primary-transparent: rgba(31,194,222,.70);
+      --text-color: #303E48;
+      --muted: rgba(48,62,72,.70);
+      --separator: #CEC3BA;
+      --paper: #ffffff;
+      --circle-color: rgba(255, 255, 255, .85);
 
-      @bottom-left {
-        content: "Nister GmbH – intern";
-        font-size: 9px;
-        color: #6B7280;
-      }
-      @bottom-center {
+      /* Placeholder look (keine Menschenbilder) */
+      --ph-bg-1: rgba(31,194,222,.22);
+      --ph-bg-2: rgba(48,62,72,.06);
+      --ph-line: rgba(255,255,255,.45);
+    }
+
+    /* =========================
+       PAGED MEDIA (PDF)
+       ========================= */
+    @page{
+      size:A4;
+      margin:2cm 2cm 2.5cm 2cm;
+
+      @top-left{ content:element(header); }
+      @bottom-left{ width:100%; content:element(footer); }
+      @bottom-right{
         content: "Seite " counter(page) " / " counter(pages);
-        font-size: 9px;
-        color: #6B7280;
+        font-size:8pt;
+        color: var(--brand-primary);
       }
     }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      color: #111827;
-      font-size: 11pt;
-      line-height: 1.55;
-      margin: 0;
+    @page:right{
+      @bottom-left{ width:100%; content:element(footerRight); }
     }
 
-    .cover-header {
-      width: 100%;
-      display: block;
+    @page:first{
+      margin:0;
+      background-image:url("assets/Nisterheaderbild.png");
+      background-size:cover;
+      background-position:center;
+
+      @top-left{ content:""; }
+      @bottom-left{ content:""; }
+      @bottom-right{ content:""; }
     }
 
-    .cover {
-      text-align: center;
-      padding-top: 18mm;
+    @page lastPage{
+      /* Re-use the same title image as premium back cover */
+      background-image:url("assets/Nisterheaderbild.png");
+      background-size:cover;
+      background-position:center;
+      margin:2cm 2cm 6cm 2cm;
+
+      @top-left{ content:""; }
+      @bottom-right{ content:""; }
+      @bottom-left{ width:100%; content:element(footerLast); }
     }
 
-    .title {
-      font-size: 26pt;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-      margin: 18mm 0 6mm;
+    @page noFooterPage{
+      background:var(--brand-primary-transparent);
+
+      @top-left{ content:""; }
+      @bottom-left{ content:""; }
+      @bottom-right{ content:""; }
     }
 
-    .subtitle {
-      font-size: 16pt;
-      font-weight: 700;
-      color: #0B4F8A;
-      margin: 0 0 8mm;
+    /* =========================
+       BASE STYLES
+       ========================= */
+    html, body{ height:100%; }
+    body{
+      margin:0;
+      padding:0;
+      color:var(--text-color);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-size:10pt;
+      line-height:1.45;
+
+      counter-reset:entries;
+      counter-reset:entriesImageAndText;
     }
 
-    .meta {
-      font-size: 10pt;
-      color: #6B7280;
+    a{ color:inherit; text-decoration:none; }
+    p{ margin-top:0; }
+    h1,h2,h3,h4{ margin:0; }
+    h4{ font-size:10pt; margin:0; }
+
+    hr{
+      height:0;
+      border:0;
+      border-top:.75mm solid var(--brand-primary);
+      margin:1cm 0 1cm 0;
     }
 
-    .divider {
-      margin: 14mm auto 0;
-      width: 65%;
-      height: 2px;
-      background: #E5E7EB;
-      border-radius: 1px;
+    /* Running header */
+    header{
+      position:running(header);
+      height:2cm;
+      border-bottom:.5mm solid var(--separator);
+    }
+    .headerInner{
+      height:2cm;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12mm;
+    }
+    .headerLeft{
+      display:flex;
+      align-items:center;
+      gap:8mm;
+      min-width:0;
+    }
+    .headerLogo{
+      height:1.15cm;
+      width:auto;
+      display:block;
+    }
+    .headerTitle{
+      font-weight:700;
+      font-size:9.5pt;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:11cm;
+    }
+    .headerRight{
+      text-align:right;
+      font-size:8pt;
+      text-transform:uppercase;
+      color:var(--muted);
+      letter-spacing:.04em;
     }
 
-    h1 {
-      font-size: 18pt;
-      margin: 0 0 6mm;
-      padding-bottom: 3mm;
-      border-bottom: 2px solid #E5E7EB;
+    /* Page types */
+    .coverPage,
+    .chapterPage,
+    .noFooterPage{
+      page-break-before:always;
     }
 
-    p {
-      margin: 0 0 6mm;
-      white-space: pre-wrap; /* keeps line breaks from the input */
+    /* =========================
+       COVER (first page)
+       ========================= */
+    .coverWrap{
+      position:relative;
+      width:100%;
+      height:100%;
     }
 
-    .callout {
-      margin: 8mm 0 0;
-      padding: 8mm;
-      background: #F5F7FB;
-      border-left: 5px solid #0B4F8A;
-      border-radius: 8px;
-      color: #111827;
-      font-size: 10.5pt;
+    /* Optional dark overlay for readability */
+    .coverOverlay{
+      position:absolute;
+      inset:0;
+      background: linear-gradient(120deg, rgba(0,0,0,.45), rgba(0,0,0,.10));
     }
 
-    .pagebreak {
-      page-break-after: always;
+    .coverBadge{
+      position:absolute;
+      left:50%;
+      top:50%;
+      transform:translate(-50%,-50%);
+      background-color:var(--circle-color);
+      border-radius:100%;
+      width:12cm;
+      height:12cm;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:18mm;
+      box-sizing:border-box;
+    }
+    .coverBadge:after{
+      content:"";
+      position:absolute;
+      left:50%;
+      top:50%;
+      transform:translate(-50%,-50%);
+      border:1mm solid rgba(255,255,255,.75);
+      border-radius:100%;
+      width:13cm;
+      height:13cm;
+    }
+
+    .coverContent{
+      position:relative;
+      z-index:2;
+      width:100%;
+    }
+    .coverLogo{
+      display:flex;
+      justify-content:center;
+      margin-bottom:10mm;
+    }
+    .coverLogo img{
+      height:18mm;
+      width:auto;
+      display:block;
+    }
+    .coverTitle{
+      font-weight:800;
+      font-size:22pt;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      line-height:1.15;
+      margin-bottom:6mm;
+    }
+    .coverSubtitle{
+      font-weight:600;
+      font-size:12pt;
+      color:var(--text-color);
+      margin-bottom:4mm;
+    }
+    .coverTagline{
+      font-size:10pt;
+      color:rgba(48,62,72,.85);
+      margin-bottom:8mm;
+    }
+    .coverDate{
+      font-size:9pt;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:rgba(48,62,72,.75);
+    }
+
+    /* =========================
+       FOOTERS (running elements)
+       ========================= */
+    .footerStandard,
+    .footerStandardRight,
+    .footerLast{
+      color:var(--brand-primary);
+      display:flex;
+      align-items:center;
+      font-size:8pt;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+    .footerStandard{ position:running(footer); }
+    .footerStandardRight{ position:running(footerRight); }
+    .footerLast{ position:running(footerLast); color:white; }
+
+    footer hr{
+      margin:0 3% 0 3%;
+      height:.5mm;
+      background-color:var(--brand-primary);
+      border-top:0;
+      width:100%;
+      display:inline-block;
+    }
+    .footerLast hr{ background-color:white; }
+
+    /* =========================
+       CHAPTER PAGES (normal docs)
+       ========================= */
+    .chapterPage h1{
+      margin-top:1cm;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      font-size:18pt;
+    }
+
+    .highlight{
+      color:var(--brand-primary);
+      font-weight:700;
+      font-size:13.5pt;
+      line-height:1.35;
+      margin-top:8mm;
+    }
+    .highlightLight{
+      color:var(--brand-primary);
+      opacity:.9;
+      margin-top:6mm;
+    }
+
+    .twoTextColumns{
+      margin:1cm 0 1cm 0;
+      column-count:2;
+      column-gap:1cm;
+    }
+
+    /* =========================
+       IMAGE PLACEHOLDER (replaces all people photos)
+       ========================= */
+    .imgPlaceholder{
+      background: linear-gradient(135deg, var(--ph-bg-1), var(--ph-bg-2));
+      position:relative;
+      overflow:hidden;
+      border-radius:4mm;
+    }
+    .imgPlaceholder:before{
+      content:"";
+      position:absolute;
+      inset:-10mm;
+      background:
+        repeating-linear-gradient(
+          45deg,
+          transparent 0,
+          transparent 10mm,
+          var(--ph-line) 10mm,
+          var(--ph-line) 11mm
+        );
+      opacity:.55;
+      transform:rotate(0deg);
+    }
+    .imgPlaceholder:after{
+      content:"IMAGE PLACEHOLDER";
+      position:absolute;
+      left:10mm;
+      bottom:10mm;
+      font-size:8pt;
+      letter-spacing:.09em;
+      text-transform:uppercase;
+      color: rgba(48,62,72,.55);
+      background: rgba(255,255,255,.60);
+      padding:3mm 4mm;
+      border-radius:2mm;
+    }
+
+    /* =========================
+       NO-FOOTER PAGES (layout pages)
+       ========================= */
+    .noFooterPage{ page: noFooterPage; }
+
+    /* Image + Text Page */
+    .imageAndTextPage .image{
+      position:absolute;
+      left:-2cm;
+      top:-2cm;
+      width:calc(100% + 4cm);
+      height:70%;
+    }
+    .imageAndTextPage .numberedElements{
+      position:absolute;
+      bottom:0;
+      width:100%;
+    }
+    .imageAndTextPage .numberedElements .entry{ counter-increment:entriesImageAndText; }
+    .imageAndTextPage .numberedElements .entry:nth-child(2){ margin-top:2cm; }
+    .imageAndTextPage .numberedElements .entry:nth-child(3){ margin-top:4cm; }
+
+    .imageAndTextPage .shapeBlueTransparent{
+      position:absolute; left:-2cm; top:6cm; width:0; height:0;
+      border-bottom:19cm solid var(--brand-primary-transparent);
+      border-right:57cm solid transparent;
+    }
+    .imageAndTextPage .shapeBlue{
+      position:absolute; left:-2cm; top:8cm; width:0; height:0;
+      border-bottom:20cm solid var(--brand-primary);
+      border-right:60cm solid transparent;
+    }
+    .imageAndTextPage .shapeBlueLight{
+      position:absolute; left:-2cm; top:9cm; width:0; height:0;
+      border-bottom:22cm solid rgba(98, 212, 232, 1);
+      border-right:66cm solid transparent;
+    }
+
+    /* Image + Logo Page */
+    .imageAndLogoPage .shapeBlue{
+      position:absolute; left:-2cm; top:-2cm; width:0; height:0;
+      border-top:20cm solid var(--brand-primary);
+      border-right:60cm solid transparent;
+    }
+    .imageAndLogoPage .shapeWhite{
+      position:absolute; left:-2cm; top:-2cm; width:0; height:0;
+      border-top:16cm solid white;
+      border-right:48cm solid transparent;
+    }
+    .imageAndLogoPage .image{
+      position:absolute;
+      height:95%;
+      width:100%;
+    }
+
+    /* Logo badge on noFooter page */
+    .logoBadge{
+      background-color:var(--circle-color);
+      border-radius:100%;
+      width:6cm;
+      height:6cm;
+      margin-right:1cm;
+      position:absolute;
+      bottom:-1cm;
+      left:1cm;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    .logoBadge img{
+      max-width:70%;
+      max-height:70%;
+      display:block;
+    }
+
+    /* Text + Image Page */
+    .textAndImagePage .shapeBlueTransparent{
+      position:absolute; left:-2cm; top:-2cm; width:0; height:0;
+      border-top:22cm solid var(--brand-primary-transparent);
+      border-right:66cm solid transparent;
+    }
+    .textAndImagePage .shapeBlue{
+      position:absolute; left:-2cm; top:-2cm; width:0; height:0;
+      border-top:20cm solid var(--brand-primary);
+      border-right:60cm solid transparent;
+    }
+    .textAndImagePage .shapeBlueLight{
+      position:absolute; left:-2cm; top:-2cm; width:0; height:0;
+      border-top:19cm solid rgba(98, 212, 232, 1);
+      border-right:57cm solid transparent;
+    }
+    .textAndImagePage p{
+      position:absolute;
+      color:white;
+      font-size:18pt;
+      line-height:1.5;
+      font-weight:800;
+      left:2cm;
+      top:2.2cm;
+      right:2cm;
+    }
+    .textAndImagePage .image{
+      position:absolute;
+      left:-2cm;
+      bottom:-2.5cm;
+      width:calc(100% + 4cm);
+      height:70%;
+    }
+
+    /* =========================
+       NUMBERED ELEMENTS / ICONS
+       ========================= */
+    hr.numberedElementsdivider{
+      height:0;
+      border:0;
+      border-top:.25mm solid var(--brand-primary);
+      margin:10mm 0 10mm 0;
+    }
+
+    .numberedElements{
+      display:flex;
+      flex-wrap: wrap;
+      justify-content:space-between;
+      margin-top:15mm;
+    }
+    .numberedElements .entry{
+      width:30%;
+      position:relative;
+      counter-increment:entries;
+    }
+    .icon{
+      position:relative;
+      margin-left:16mm;
+      width: calc(100% - 16mm);
+      height: 12mm;
+    }
+    .icon:before{
+      position:relative;
+      z-index:1;
+      content: counter(entries);
+      display:inline-block;
+      border-radius:100%;
+      height:12mm;
+      width:12mm;
+      line-height:12mm;
+      margin-left:-16mm;
+      text-align:center;
+      color:black;
+      border:0.125cm solid var(--brand-primary);
+      font-weight:800;
+      font-size:20pt;
+      background: rgba(255,255,255,.65);
+    }
+    .imageAndTextPage .icon:before{
+      content: counter(entriesImageAndText);
+      border:0.125cm solid white;
+      background: rgba(255,255,255,.75);
+    }
+    .numberedElements h2{
+      font-size:10pt;
+      text-transform:uppercase;
+      margin-top:10mm;
+      letter-spacing:.04em;
+    }
+
+    /* =========================
+       TEAM (people photos replaced)
+       ========================= */
+    .team{
+      margin-top:2cm;
+      display:flex;
+      justify-content:space-between;
+      gap:4%;
+    }
+    .team div{ width:28%; }
+    .team .avatar{
+      width:100%;
+      aspect-ratio:1/1;
+      border-radius:100%;
+    }
+    .team h2, .team h3{
+      font-size:10pt;
+      text-transform:uppercase;
+      margin:0;
+      letter-spacing:.04em;
+    }
+    .team h3{
+      font-weight:400;
+      font-style:italic;
+      margin-bottom:.5cm;
+      color:var(--muted);
+      text-transform:none;
+      letter-spacing:0;
+    }
+    .team h2{ margin-top:1cm; }
+
+    /* =========================
+       LAST PAGE CONTENT
+       ========================= */
+    .lastPage{ page:lastPage; }
+    .backOverlay{
+      position:relative;
+      min-height:100%;
+    }
+    .backOverlay:before{
+      content:"";
+      position:absolute;
+      inset:-2cm; /* cover margins visually */
+      background: linear-gradient(120deg, rgba(0,0,0,.55), rgba(0,0,0,.20));
+      z-index:0;
     }
   </style>
 </head>
 
 <body>
 
-  <!-- COVER -->
-  <img src="../assets/nisterheaderbild.png" class="cover-header" alt="Header" />
-
-  <div class="cover">
-    <div class="title">{{ title }}</div>
-    {% if subtitle %}
-      <div class="subtitle">{{ subtitle }}</div>
-    {% endif %}
-    <div class="meta">
-      {{ tagline }}<br />
-      Stand: {{ date }}
+  <!-- RUNNING HEADER -->
+  <header>
+    <div class="headerInner">
+      <div class="headerLeft">
+        <img class="headerLogo" src="assets/gpsholding.png" alt="Logo" />
+        <div class="headerTitle">{{ title }}</div>
+      </div>
+      <div class="headerRight">
+        <div>{{ subtitle }}</div>
+        <div>{{ date }}</div>
+      </div>
     </div>
-    <div class="divider"></div>
+  </header>
+
+  <!-- RUNNING FOOTERS -->
+  <footer class="footerStandard">
+    <a href="{{ website_url | default('#') }}">{{ website_label | default('companywebsite.com') }}</a>
+    &emsp;|&emsp;
+    <a href="mailto:{{ email | default('email@website.com') }}">{{ email | default('email@website.com') }}</a>
+    &emsp;|&emsp;
+    <span>{{ phone | default('317.123.2345') }}</span>
+    <hr />
+  </footer>
+
+  <footer class="footerStandardRight">
+    <hr />
+    <span>{{ phone | default('317.123.2345') }}</span>
+    &emsp;|&emsp;
+    <a href="mailto:{{ email | default('email@website.com') }}">{{ email | default('email@website.com') }}</a>
+    &emsp;|&emsp;
+    <a href="{{ website_url | default('#') }}">{{ website_label | default('companywebsite.com') }}</a>
+  </footer>
+
+  <footer class="footerLast">
+    <div class="logoBadge" style="width:3cm;height:3cm;position:relative;left:0;bottom:0;margin-right:10mm;">
+      <img src="assets/gpsholding.png" alt="Logo" />
+    </div>
+    <div>
+      <a href="{{ website_url | default('#') }}">{{ website_label | default('companywebsite.com') }}</a><br/>
+      <a href="mailto:{{ email | default('email@website.com') }}">{{ email | default('email@website.com') }}</a><br/>
+      <span>{{ phone | default('317.123.2345') }}</span>
+    </div>
+    <hr />
+  </footer>
+
+  <!-- =========================
+       COVER PAGE (first page)
+       ========================= -->
+  <div class="coverWrap">
+    <div class="coverOverlay"></div>
+    <div class="coverBadge">
+      <div class="coverContent">
+        <div class="coverLogo">
+          <img src="assets/gpsholding.png" alt="Logo" />
+        </div>
+        <div class="coverTitle">{{ title }}</div>
+        <div class="coverSubtitle">{{ subtitle }}</div>
+        <div class="coverTagline">{{ tagline }}</div>
+        <div class="coverDate">{{ date }}</div>
+      </div>
+    </div>
   </div>
 
-  <div class="pagebreak"></div>
+  <!-- =========================
+       CHAPTER PAGE (normal doc)
+       ========================= -->
+  <div class="chapterPage">
+    <h1>{{ section_title }}</h1>
 
-  <!-- CONTENT -->
-  <h1>{{ section_title }}</h1>
-  <p>{{ content }}</p>
+    <p class="highlight">
+      {{ callout }}
+    </p>
 
-  <div class="callout">{{ callout }}</div>
+    <p class="highlightLight">
+      {{ tagline }}
+    </p>
+
+    <div class="twoTextColumns">
+      <!-- Optional: if your content is already HTML, use |safe -->
+      {{ content }}
+    </div>
+  </div>
+
+  <!-- =========================
+       NO-FOOTER IMAGE + TEXT PAGE
+       (image replaced by placeholder)
+       ========================= -->
+  <div class="noFooterPage imageAndTextPage">
+    <div class="image imgPlaceholder"></div>
+
+    <div class="shapeBlue"></div>
+    <div class="shapeBlueTransparent"></div>
+    <div class="shapeBlueLight"></div>
+
+    <div class="numberedElements">
+      <div class="entry">
+        <div class="icon"></div>
+        <h2>{{ section_title }}</h2>
+        <p>{{ content }}</p>
+      </div>
+
+      <div class="entry">
+        <div class="icon"></div>
+        <h2>{{ section_title }}</h2>
+        <p>{{ content }}</p>
+      </div>
+
+      <div class="entry">
+        <div class="icon"></div>
+        <h2>{{ section_title }}</h2>
+        <p>{{ content }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       NO-FOOTER IMAGE + LOGO PAGE
+       (image replaced by placeholder)
+       ========================= -->
+  <div class="noFooterPage imageAndLogoPage">
+    <div class="shapeBlue"></div>
+    <div class="shapeWhite"></div>
+
+    <div class="image imgPlaceholder"></div>
+
+    <div class="logoBadge">
+      <img src="assets/gpsholding.png" alt="Logo" />
+    </div>
+  </div>
+
+  <!-- =========================
+       TEAM CHAPTER (photos replaced)
+       (You can also remove this whole block if not needed)
+       ========================= -->
+  <div class="chapterPage">
+    <h1>{{ section_title }}</h1>
+
+    <p class="highlight">{{ callout }}</p>
+    <p class="highlightLight">{{ tagline }}</p>
+
+    <div class="team">
+      <div>
+        <div class="imgPlaceholder avatar"></div>
+        <h2>{{ team_member_1_name | default('Firstname Last') }}</h2>
+        <h3>{{ team_member_1_role | default('Job Position') }}</h3>
+        <p>{{ team_member_1_text | default(content) }}</p>
+      </div>
+
+      <div>
+        <div class="imgPlaceholder avatar"></div>
+        <h2>{{ team_member_2_name | default('Firstname Last') }}</h2>
+        <h3>{{ team_member_2_role | default('Job Position') }}</h3>
+        <p>{{ team_member_2_text | default(content) }}</p>
+      </div>
+
+      <div>
+        <div class="imgPlaceholder avatar"></div>
+        <h2>{{ team_member_3_name | default('Firstname Last') }}</h2>
+        <h3>{{ team_member_3_role | default('Job Position') }}</h3>
+        <p>{{ team_member_3_text | default(content) }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       NO-FOOTER TEXT + IMAGE PAGE
+       (image replaced by placeholder)
+       ========================= -->
+  <div class="noFooterPage textAndImagePage">
+    <div class="image imgPlaceholder"></div>
+
+    <div class="shapeBlue"></div>
+    <div class="shapeBlueTransparent"></div>
+    <div class="shapeBlueLight"></div>
+
+    <p>
+      {{ callout }}
+    </p>
+  </div>
+
+  <!-- =========================
+       SERVICES / LIST PAGE (example)
+       ========================= -->
+  <div class="chapterPage">
+    <h1>{{ section_title }}</h1>
+    <p class="highlight">{{ callout }}</p>
+
+    <div class="numberedElements">
+      <div class="entry">
+        <div class="icon"></div>
+        <h2>{{ section_title }}</h2>
+        <p>{{ content }}</p>
+      </div>
+      <div class="entry">
+        <div class="icon"></div>
+        <h2>{{ section_title }}</h2>
+        <p>{{ content }}</p>
+      </div>
+      <div class="entry">
+        <div class="icon"></div>
+        <h2>{{ section_title }}</h2>
+        <p>{{ content }}</p>
+      </div>
+    </div>
+
+    <hr class="numberedElementsdivider" />
+
+    <div class="numberedElements">
+      <div class="entry">
+        <div class="icon"></div>
+        <h2>{{ section_title }}</h2>
+        <p>{{ content }}</p>
+      </div>
+      <div class="entry">
+        <div class="icon"></div>
+        <h2>{{ section_title }}</h2>
+        <p>{{ content }}</p>
+      </div>
+      <div class="entry">
+        <div class="icon"></div>
+        <h2>{{ section_title }}</h2>
+        <p>{{ content }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       LAST PAGE
+       ========================= -->
+  <div class="lastPage">
+    <div class="backOverlay"></div>
+  </div>
 
 </body>
 </html>
