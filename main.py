@@ -1,18 +1,17 @@
-from fastapi import FastAPI, Response, HTTPException, Header
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from weasyprint import HTML
 from datetime import datetime
+from typing import Literal
 import base64
 import os
-from typing import Optional, Literal
 
 app = FastAPI(title="PDF Generator", version="1.0.0")
 
+# Templates live in ./templates (must be included in the container image)
 env = Environment(loader=FileSystemLoader("templates"))
-
-PDF_API_KEY = os.getenv("PDF_API_KEY")  # set in Cloud Run env vars
 
 
 class DocumentRequest(BaseModel):
@@ -27,17 +26,10 @@ def health():
     return {"ok": True}
 
 
-def _require_api_key(x_api_key: Optional[str]):
-    # If you want "no key required", just return here.
-    if not PDF_API_KEY:
-        raise HTTPException(status_code=500, detail="Server not configured: PDF_API_KEY not set")
-    if not x_api_key or x_api_key != PDF_API_KEY:
-        raise HTTPException(status_code=403, detail="Forbidden: missing or invalid API key")
-
-
 def _render_pdf_bytes(req: DocumentRequest) -> bytes:
+    template_name = "rapport.html" if req.template == "rapport" else "master.html"
+
     try:
-        template_name = "rapport.html" if req.template == "rapport" else "master.html"
         template = env.get_template(template_name)
     except TemplateNotFound:
         raise HTTPException(
@@ -62,24 +54,27 @@ def _render_pdf_bytes(req: DocumentRequest) -> bytes:
         raise HTTPException(status_code=500, detail=f"PDF rendering failed: {e}")
 
 
-# ✅ Action endpoint: returns REAL PDF bytes (so ChatGPT can offer direct download)
+# ✅ Custom GPT Action endpoint: returns REAL PDF bytes (binary)
 @app.post("/generate")
-def generate_pdf(request: DocumentRequest, x_api_key: Optional[str] = Header(default=None, alias="x-api-key")):
-    _require_api_key(x_api_key)
+def generate_pdf(request: DocumentRequest):
     pdf_bytes = _render_pdf_bytes(request)
 
     filename = "rapport.pdf" if request.template == "rapport" else "document.pdf"
+
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            # hilft manchen Clients beim korrekten Handling:
+            "Cache-Control": "no-store",
+        },
     )
 
 
-# ✅ Optional: keep base64 JSON endpoint (useful for non-ChatGPT clients)
-@app.post("/generate_document")
-def generate_document_base64(request: DocumentRequest, x_api_key: Optional[str] = Header(default=None, alias="x-api-key")):
-    _require_api_key(x_api_key)
+# ✅ Optional fallback: returns JSON with base64
+@app.post("/generate_base64")
+def generate_pdf_base64(request: DocumentRequest):
     pdf_bytes = _render_pdf_bytes(request)
     pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
