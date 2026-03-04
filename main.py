@@ -1,5 +1,6 @@
+```python
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import Response, JSONResponse
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from weasyprint import HTML
@@ -54,31 +55,36 @@ def _render_pdf_bytes(req: DocumentRequest) -> bytes:
         raise HTTPException(status_code=500, detail=f"PDF rendering failed: {e}")
 
 
-# ✅ Custom GPT Action endpoint: returns REAL PDF bytes (binary)
+# Hauptendpoint für Custom GPT (JSON + Base64)
 @app.post("/generate")
 def generate_pdf(request: DocumentRequest):
     pdf_bytes = _render_pdf_bytes(request)
+    pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
     filename = "rapport.pdf" if request.template == "rapport" else "document.pdf"
 
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            # hilft manchen Clients beim korrekten Handling:
-            "Cache-Control": "no-store",
-        },
+    return JSONResponse(
+        {
+            "filename": filename,
+            "content_type": "application/pdf",
+            "pdf_base64": pdf_b64,
+        }
     )
 
 
-# ✅ Optional fallback: returns JSON with base64
+# Alias Endpoint (optional – gleiches Verhalten)
 @app.post("/generate_base64")
 def generate_pdf_base64(request: DocumentRequest):
     pdf_bytes = _render_pdf_bytes(request)
     pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
     filename = "rapport.pdf" if request.template == "rapport" else "document.pdf"
+
     return JSONResponse(
-        {"filename": filename, "content_type": "application/pdf", "pdf_base64": pdf_b64}
+        {
+            "filename": filename,
+            "content_type": "application/pdf",
+            "pdf_base64": pdf_b64,
+        }
     )
+```
