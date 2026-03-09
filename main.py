@@ -14,7 +14,7 @@ import hashlib
 import uuid
 import re
 
-app = FastAPI(title="PDF Generator", version="3.1.0")
+app = FastAPI(title="PDF Generator", version="3.2.0")
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -187,7 +187,10 @@ def generate(request: Request, body: DocumentRequest):
 
     doc_id = uuid.uuid4().hex
 
-    DOCUMENT_STORE[doc_id] = body
+    # PDF wird HIER erzeugt
+    pdf_bytes = _render_pdf_bytes(body)
+
+    DOCUMENT_STORE[doc_id] = pdf_bytes
 
     payload = {
         "id": doc_id,
@@ -219,9 +222,7 @@ def download(token: str):
     if doc_id not in DOCUMENT_STORE:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    req = DOCUMENT_STORE[doc_id]
-
-    pdf_bytes = _render_pdf_bytes(req)
+    pdf_bytes = DOCUMENT_STORE[doc_id]
 
     filename = payload.get("filename", "document.pdf")
 
