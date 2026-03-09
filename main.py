@@ -14,20 +14,20 @@ import hashlib
 import uuid
 import re
 
-app = FastAPI(title="PDF Generator", version="3.0.0")
+app = FastAPI(title="PDF Generator", version="3.1.0")
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 
 env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
 
+DOCUMENT_STORE = {}
 
 class DocumentRequest(BaseModel):
     title: str
     subtitle: str
     content: str
     template: Literal["document", "rapport"] = "document"
-
 
 class PdfLinkResponse(BaseModel):
     filename: str
@@ -67,6 +67,7 @@ def _verify_token(token: str, secret: str) -> dict:
         raise HTTPException(status_code=400, detail="Invalid token format")
 
     expected = _sign(payload_b64, secret)
+
     if not hmac.compare_digest(expected, sig_b64):
         raise HTTPException(status_code=403, detail="Invalid token signature")
 
@@ -91,136 +92,48 @@ def _split_paragraphs(text: str) -> list[str]:
         return []
 
     paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
-    if paragraphs:
-        return paragraphs
-
-    # fallback: if there are no paragraph breaks, split by sentence groups
-    sentences = re.split(r"(?<=[.!?])\s+", text)
-    chunk = []
-    chunks = []
-    for sentence in sentences:
-        chunk.append(sentence.strip())
-        if len(" ".join(chunk)) > 350:
-            chunks.append(" ".join(chunk).strip())
-            chunk = []
-    if chunk:
-        chunks.append(" ".join(chunk).strip())
-    return [c for c in chunks if c]
-
-
-def _first_sentence(text: str, fallback: str = "") -> str:
-    if not text:
-        return fallback
-    parts = re.split(r"(?<=[.!?])\s+", text.strip(), maxsplit=1)
-    return parts[0].strip() if parts else fallback
-
-
-def _short_title_from_text(text: str, fallback: str) -> str:
-    if not text:
-        return fallback
-    first = _first_sentence(text, "")
-    words = re.findall(r"\w+", first)
-    if not words:
-        return fallback
-    return " ".join(words[:4]).title()
-
-
-def _build_type_a_section(title: str, intro: str, paragraphs: list[str]) -> dict:
-    items = paragraphs[:4]
-    while len(items) < 4:
-        items.append("")
-
-    return {
-        "layout": "type_a",
-        "title": title,
-        "intro": intro,
-        "item_1_title": _short_title_from_text(items[0], "Punkt 1"),
-        "item_1_text": items[0],
-        "item_2_title": _short_title_from_text(items[1], "Punkt 2"),
-        "item_2_text": items[1],
-        "item_3_title": _short_title_from_text(items[2], "Punkt 3"),
-        "item_3_text": items[2],
-        "item_4_title": _short_title_from_text(items[3], "Punkt 4"),
-        "item_4_text": items[3],
-        # image_1 / image_2 intentionally omitted so template fallback assets are used
-    }
-
-
-def _build_type_b_section(title: str, intro: str, paragraphs: list[str]) -> dict:
-    factors = paragraphs[:6]
-    while len(factors) < 6:
-        factors.append("")
-
-    return {
-        "layout": "type_b",
-        "title": title,
-        "intro": intro,
-        "factor_1_title": _short_title_from_text(factors[0], "Faktor 1"),
-        "factor_1_text": factors[0],
-        "factor_2_title": _short_title_from_text(factors[1], "Faktor 2"),
-        "factor_2_text": factors[1],
-        "factor_3_title": _short_title_from_text(factors[2], "Faktor 3"),
-        "factor_3_text": factors[2],
-        "factor_4_title": _short_title_from_text(factors[3], "Faktor 4"),
-        "factor_4_text": factors[3],
-        "factor_5_title": _short_title_from_text(factors[4], "Faktor 5"),
-        "factor_5_text": factors[4],
-        "factor_6_title": _short_title_from_text(factors[5], "Faktor 6"),
-        "factor_6_text": factors[5],
-        # image_1 intentionally omitted so template fallback asset is used
-    }
+    return paragraphs
 
 
 def _content_to_sections(req: DocumentRequest) -> list[dict]:
+
     paragraphs = _split_paragraphs(req.content)
 
-    # Minimal fallback if user sends very short content
     if not paragraphs:
-        paragraphs = [req.content.strip() or req.subtitle or req.title]
+        paragraphs = [req.content]
 
-    sections: list[dict] = []
+    sections = []
 
-    # First section intro prefers subtitle if available
-    intro_seed = req.subtitle.strip() if req.subtitle.strip() else _first_sentence(req.content, req.title)
-
-    # Chunk paragraphs into reusable pages
-    chunk_size_a = 4
-    chunk_size_b = 6
-
+    chunk_size = 4
     index = 0
-    page_no = 1
 
     while index < len(paragraphs):
-        # Alternate layouts A/B/A/B...
-        if page_no % 2 == 1:
-            chunk = paragraphs[index:index + chunk_size_a]
-            sections.append(
-                _build_type_a_section(
-                    title=f"{req.title}",
-                    intro=intro_seed if page_no == 1 else _first_sentence(" ".join(chunk), req.subtitle),
-                    paragraphs=chunk,
-                )
-            )
-            index += chunk_size_a
-        else:
-            chunk = paragraphs[index:index + chunk_size_b]
-            sections.append(
-                _build_type_b_section(
-                    title=f"{req.title}",
-                    intro=_first_sentence(" ".join(chunk), req.subtitle),
-                    paragraphs=chunk,
-                )
-            )
-            index += chunk_size_b
 
-        page_no += 1
+        chunk = paragraphs[index:index + chunk_size]
+
+        sections.append(
+            {
+                "layout": "type_a",
+                "title": req.title,
+                "intro": req.subtitle,
+                "item_1_title": "Punkt 1",
+                "item_1_text": chunk[0] if len(chunk) > 0 else "",
+                "item_2_title": "Punkt 2",
+                "item_2_text": chunk[1] if len(chunk) > 1 else "",
+                "item_3_title": "Punkt 3",
+                "item_3_text": chunk[2] if len(chunk) > 2 else "",
+                "item_4_title": "Punkt 4",
+                "item_4_text": chunk[3] if len(chunk) > 3 else "",
+            }
+        )
+
+        index += chunk_size
 
     return sections
 
 
 def _render_pdf_bytes(req: DocumentRequest) -> bytes:
-    # Use master.html for the new template system.
-    # If you later add a real rapport.html again, you can switch here.
+
     template_name = "master.html"
 
     try:
@@ -228,28 +141,25 @@ def _render_pdf_bytes(req: DocumentRequest) -> bytes:
     except TemplateNotFound:
         raise HTTPException(
             status_code=500,
-            detail=f"Template not found: templates/{template_name} (is it included in the container?)",
+            detail=f"Template not found: templates/{template_name}",
         )
 
     sections = _content_to_sections(req)
 
     rendered_html = template.render(
         document_title=req.title,
-        title=req.title,  # cover claim
+        title=req.title,
         subtitle=req.subtitle,
         date=datetime.now().strftime("%d.%m.%Y"),
         sections=sections,
         end_title="Vielen Dank",
-        end_text=req.subtitle if req.subtitle.strip() else "Dieses Dokument wurde automatisch generiert.",
+        end_text=req.subtitle,
         address="GPS Group Holding",
         telephone="+41 00 000 00 00",
         website="www.gpsgroup.ch",
     )
 
-    try:
-        return HTML(string=rendered_html, base_url=str(TEMPLATES_DIR)).write_pdf()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"PDF rendering failed: {e}")
+    return HTML(string=rendered_html, base_url=str(TEMPLATES_DIR)).write_pdf()
 
 
 @app.get("/health")
@@ -264,21 +174,23 @@ def root():
 
 @app.post("/generate", response_model=PdfLinkResponse)
 def generate(request: Request, body: DocumentRequest):
-    secret = os.getenv("PDF_API_KEY")
-    if not secret:
-        raise HTTPException(status_code=500, detail="Server configuration: PDF_API_KEY is not set")
 
-    base_filename = "rapport" if body.template == "rapport" else "document"
-    filename = f"{base_filename}_{_now_stamp()}_{uuid.uuid4().hex[:8]}.pdf"
+    secret = os.getenv("PDF_API_KEY")
+
+    if not secret:
+        raise HTTPException(status_code=500, detail="PDF_API_KEY not set")
+
+    filename = f"document_{_now_stamp()}_{uuid.uuid4().hex[:8]}.pdf"
 
     ttl_minutes = int(os.getenv("PDF_URL_TTL_MINUTES", "60"))
     exp_ts = datetime.now(timezone.utc).timestamp() + ttl_minutes * 60
 
+    doc_id = uuid.uuid4().hex
+
+    DOCUMENT_STORE[doc_id] = body
+
     payload = {
-        "title": body.title,
-        "subtitle": body.subtitle,
-        "content": body.content,
-        "template": body.template,
+        "id": doc_id,
         "filename": filename,
         "exp": exp_ts,
     }
@@ -286,6 +198,7 @@ def generate(request: Request, body: DocumentRequest):
     token = _make_token(payload, secret)
 
     base_url = str(request.base_url).rstrip("/")
+
     url = f"{base_url}/download/{token}"
 
     return PdfLinkResponse(filename=filename, url=url)
@@ -293,21 +206,24 @@ def generate(request: Request, body: DocumentRequest):
 
 @app.get("/download/{token}")
 def download(token: str):
+
     secret = os.getenv("PDF_API_KEY")
+
     if not secret:
-        raise HTTPException(status_code=500, detail="Server configuration: PDF_API_KEY is not set")
+        raise HTTPException(status_code=500, detail="PDF_API_KEY not set")
 
     payload = _verify_token(token, secret)
 
-    req = DocumentRequest(
-        title=payload["title"],
-        subtitle=payload["subtitle"],
-        content=payload["content"],
-        template=payload["template"],
-    )
-    filename = payload.get("filename", "document.pdf")
+    doc_id = payload.get("id")
+
+    if doc_id not in DOCUMENT_STORE:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    req = DOCUMENT_STORE[doc_id]
 
     pdf_bytes = _render_pdf_bytes(req)
+
+    filename = payload.get("filename", "document.pdf")
 
     return Response(
         content=pdf_bytes,
