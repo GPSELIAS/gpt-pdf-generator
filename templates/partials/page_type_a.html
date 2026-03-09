@@ -1,0 +1,69 @@
+<section class="page page--content">
+  <div class="title-xl">{{ section.title }}</div>
+  <div class="intro">{{ section.intro }}</div>
+
+  <div class="image-row">
+    <div class="image-row__bar" aria-hidden="true"></div>
+
+    <div>
+      {% if section.image_1 %}
+        <img class="image image--tall" src="{{ section.image_1 }}" alt="" />
+      {% else %}
+        <img
+          class="image image--tall"
+          src="assets/handshake.png"
+          alt=""
+        />
+      {% endif %}
+    </div>
+
+    <div>
+      {% if section.image_2 %}
+        <img class="image image--tall" src="{{ section.image_2 }}" alt="" />
+      {% else %}
+        <img
+          class="image image--tall"
+          src="assets/laptop.png"
+          alt=""
+        />
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section-subtitle">Mission</div>
+
+  <div class="cards-2x2">
+    <div class="card">
+      <div class="card__num"><span>01</span></div>
+      <div>
+        <div class="card__title">{{ section.item_1_title }}</div>
+        <p class="card__text">{{ section.item_1_text }}</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__num"><span>02</span></div>
+      <div>
+        <div class="card__title">{{ section.item_2_title }}</div>
+        <p class="card__text">{{ section.item_2_text }}</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__num"><span>03</span></div>
+      <div>
+        <div class="card__title">{{ section.item_3_title }}</div>
+        <p class="card__text">{{ section.item_3_text }}</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__num"><span>04</span></div>
+      <div>
+        <div class="card__title">{{ section.item_4_title }}</div>
+        <p class="card__text">{{ section.item_4_text }}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
