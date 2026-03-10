@@ -1,18 +1,12 @@
 <div class="type-c-intro">
-  <div class="type-c-intro__top-band">
-    <div class="type-c-intro__header">
-      <div class="type-c-intro__header-left">
-        <div class="type-c-intro__brand">
-          <div class="type-c-intro__brand-logo">
-            <img src="assets/gpsholding.png" alt="GPS Group Holding" />
-          </div>
-          <div class="type-c-intro__brand-name">{{ section.brand_name }}</div>
-        </div>
-      </div>
-      <div class="type-c-intro__header-right">
-        <div class="type-c-intro__context-right">{{ section.context_right }}</div>
-      </div>
+  <div class="type-c-intro__top-band"></div>
+
+  <div class="type-c-intro__header">
+    <div class="type-c-intro__brand">
+      <img src="assets/gpsholding.png" alt="GPS Group Holding">
+      <div class="type-c-intro__brand-name">{{ section.brand_name }}</div>
     </div>
+    <div class="type-c-intro__context-right">{{ section.context_right }}</div>
   </div>
 
   <div class="type-c-intro__page">
@@ -40,7 +34,7 @@
 
       <div class="type-c-intro__body">
         <div class="type-c-intro__body-left">
-          <div class="type-c-intro__body-left-inner">{{ section.body_left | safe }}</div>
+          {{ section.body_left | safe }}
         </div>
 
         {% if section.sidebar_items %}
@@ -59,12 +53,11 @@
     </div>
 
     <div class="type-c-intro__footer">
-      <div class="type-c-intro__footer-line"></div>
-      <div class="type-c-intro__footer-row">
-        <div class="type-c-intro__footer-left">{{ section.footer_left }}</div>
-        <div class="type-c-intro__page-number">
-          <div class="type-c-intro__page-number-text">{{ section.page_number }}</div>
-          <div class="type-c-intro__page-number-underline"></div>
+      <div class="type-c-intro__footer-line footer-line"></div>
+      <div class="type-c-intro__footer-row footer-row">
+        <div class="type-c-intro__footer-left footer-left">{{ section.footer_left }}</div>
+        <div class="type-c-intro__page-number page-number">
+          <span class="type-c-intro__page-number-text">{{ section.page_number }}</span>
         </div>
       </div>
     </div>
