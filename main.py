@@ -126,7 +126,12 @@ def _build_type_c_sections(req: DocumentRequest, paragraphs: list[str]) -> list[
             "intro": first_chunk[0] if first_chunk else "",
             "subheading": req.subtitle,
             "body_left": _paragraphs_to_html(first_chunk[1:]),
-            "sidebar_items": [],
+            ""sidebar_items": [
+    {
+        "title": "Zusammenfassung",
+        "text": first_chunk[0] if first_chunk else ""
+    }
+],
             "brand_name": "GPS Group Holding",
             "context_right": req.subtitle,
             "footer_left": "Kompetenz und Qualität auf höchstem Niveau",
@@ -146,7 +151,12 @@ def _build_type_c_sections(req: DocumentRequest, paragraphs: list[str]) -> list[
                 "layout": "type_c_continue",
                 "subheading": req.subtitle,
                 "body_left": _paragraphs_to_html(chunk),
-                "sidebar_items": [],
+                "sidebar_items": [
+    {
+        "title": "Zusammenfassung",
+        "text": first_chunk[0] if first_chunk else ""
+    }
+],
                 "brand_name": "GPS Group Holding",
                 "context_right": req.subtitle,
                 "footer_left": "Kompetenz und Qualität auf höchstem Niveau",
