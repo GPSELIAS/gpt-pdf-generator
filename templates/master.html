@@ -4,10 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ document_title|default("PDF") }}</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="styles.css" />
   </head>
+
   <body>
+
+    <!-- Running header / footer for WeasyPrint -->
     <div class="running">
+
       <div class="running__header-left">
         <div class="header-left">
           <div class="header-left__cell">
@@ -17,6 +21,7 @@
               alt="GPS Group Holding"
             />
           </div>
+
           <div class="header-left__cell header-left__text">
             {{ brand_name|default("GPS Group Holding") }}
           </div>
@@ -34,20 +39,30 @@
           {{ footer_text|default("Kompetenz und Qualität auf höchstem Niveau") }}
         </div>
       </div>
+
     </div>
 
+    <!-- COVER -->
     {% include "partials/cover.html" %}
 
+    <!-- CONTENT SECTIONS -->
     {% for section in sections %}
+
       {% if section.layout == "type_a" %}
         {% include "partials/page_type_a.html" %}
+
       {% elif section.layout == "type_b" %}
         {% include "partials/page_type_b.html" %}
+
       {% elif section.layout == "type_c" %}
         {% include "partials/page_type_c.html" %}
+
       {% endif %}
+
     {% endfor %}
 
+    <!-- CLOSING PAGE -->
     {% include "partials/closing.html" %}
+
   </body>
 </html>
