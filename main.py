@@ -14,7 +14,7 @@ import hashlib
 import uuid
 import re
 
-app = FastAPI(title="PDF Generator", version="3.2.0")
+app = FastAPI(title="PDF Generator", version="4.0.0")
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -23,11 +23,13 @@ env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
 
 DOCUMENT_STORE = {}
 
+
 class DocumentRequest(BaseModel):
     title: str
     subtitle: str
     content: str
     template: Literal["document", "rapport"] = "document"
+
 
 class PdfLinkResponse(BaseModel):
     filename: str
@@ -88,6 +90,7 @@ def _normalize_text(text: str) -> str:
 
 def _split_paragraphs(text: str) -> list[str]:
     text = _normalize_text(text)
+
     if not text:
         return []
 
@@ -95,39 +98,60 @@ def _split_paragraphs(text: str) -> list[str]:
     return paragraphs
 
 
-def _content_to_sections(req: DocumentRequest) -> list[dict]:
+def _build_sections(req: DocumentRequest) -> list[dict]:
 
     paragraphs = _split_paragraphs(req.content)
 
-    if not paragraphs:
-        paragraphs = [req.content]
-
     sections = []
 
-    chunk_size = 4
     index = 0
 
     while index < len(paragraphs):
 
-        chunk = paragraphs[index:index + chunk_size]
+        remaining = len(paragraphs) - index
 
-        sections.append(
-            {
-                "layout": "type_a",
-                "title": req.title,
-                "intro": req.subtitle,
-                "item_1_title": "Punkt 1",
-                "item_1_text": chunk[0] if len(chunk) > 0 else "",
-                "item_2_title": "Punkt 2",
-                "item_2_text": chunk[1] if len(chunk) > 1 else "",
-                "item_3_title": "Punkt 3",
-                "item_3_text": chunk[2] if len(chunk) > 2 else "",
-                "item_4_title": "Punkt 4",
-                "item_4_text": chunk[3] if len(chunk) > 3 else "",
-            }
-        )
+        # Wenn viele Punkte → type_b Layout
+        if remaining >= 6:
 
-        index += chunk_size
+            chunk = paragraphs[index:index + 6]
+
+            sections.append(
+                {
+                    "layout": "type_b",
+                    "title": req.title,
+                    "intro": req.subtitle,
+                    "factor_1": chunk[0],
+                    "factor_2": chunk[1],
+                    "factor_3": chunk[2],
+                    "factor_4": chunk[3],
+                    "factor_5": chunk[4],
+                    "factor_6": chunk[5],
+                }
+            )
+
+            index += 6
+
+        else:
+
+            chunk = paragraphs[index:index + 4]
+
+            sections.append(
+                {
+                    "layout": "type_a",
+                    "title": req.title,
+                    "intro": req.subtitle,
+                    "item_1_title": "Punkt 1",
+                    "item_1_text": chunk[0] if len(chunk) > 0 else "",
+                    "item_2_title": "Punkt 2",
+                    "item_2_text": chunk[1] if len(chunk) > 1 else "",
+                    "item_3_title": "Punkt 3",
+                    "item_3_text": chunk[2] if len(chunk) > 2 else "",
+                    "item_4_title": "Punkt 4",
+                    "item_4_text": chunk[3] if len(chunk) > 3 else "",
+                }
+            )
+
+            index += 4
 
     return sections
 
@@ -144,7 +168,7 @@ def _render_pdf_bytes(req: DocumentRequest) -> bytes:
             detail=f"Template not found: templates/{template_name}",
         )
 
-    sections = _content_to_sections(req)
+    sections = _build_sections(req)
 
     rendered_html = template.render(
         document_title=req.title,
@@ -187,7 +211,6 @@ def generate(request: Request, body: DocumentRequest):
 
     doc_id = uuid.uuid4().hex
 
-    # PDF wird HIER erzeugt
     pdf_bytes = _render_pdf_bytes(body)
 
     DOCUMENT_STORE[doc_id] = pdf_bytes
