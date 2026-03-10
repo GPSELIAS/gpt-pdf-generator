@@ -64,6 +64,7 @@ body {
   padding: 0;
   font-family: Arial, Helvetica, sans-serif;
   color: var(--ink);
+  background: #fff;
 }
 
 * {
@@ -406,4 +407,344 @@ body {
 .cover-claim {
   position: absolute;
   right: 16mm;
-  bottom:
+  bottom: 18mm;
+  max-width: 120mm;
+  text-align: right;
+  font-size: 16pt;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+}
+
+/* Closing */
+.closing-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.closing-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.closing-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 110mm;
+  height: 85mm;
+  background: var(--gold-veil);
+  z-index: 1;
+}
+
+.closing-content {
+  position: absolute;
+  left: 16mm;
+  right: 16mm;
+  top: 128mm;
+  z-index: 2;
+}
+
+.closing-title {
+  margin: 0 0 4mm 0;
+  font-size: 30pt;
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.closing-text {
+  margin: 0;
+  max-width: 120mm;
+  color: #1b1b1b;
+  font-size: 10pt;
+  line-height: 1.45;
+}
+
+.closing-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 70mm;
+  background: var(--gold);
+  z-index: 1;
+  padding: 14mm 16mm;
+  color: #fff;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10mm;
+}
+
+.contact__label {
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin: 0 0 3mm 0;
+  text-transform: uppercase;
+}
+
+.contact__value {
+  margin: 0;
+  font-size: 10pt;
+  line-height: 1.4;
+  color: #fff;
+}
+
+/* type_c */
+.page--type-c {
+  position: relative;
+  min-height: 297mm;
+  padding-top: 0;
+  overflow: hidden;
+  background: var(--page-bg);
+}
+
+.page--type-c .decor {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.page--type-c .decor--top {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: var(--type-c-top-band-h);
+  background: var(--accent);
+}
+
+.page--type-c .decor--left {
+  left: 0;
+  top: var(--type-c-left-band-top);
+  width: var(--type-c-left-band-w);
+  height: calc(100% - var(--type-c-left-band-top) - 28mm);
+  min-height: 180mm;
+  background: var(--accent);
+}
+
+.page--type-c .content {
+  position: relative;
+  z-index: 1;
+  padding: var(--type-c-content-top) var(--type-c-pad-right) 24mm var(--type-c-pad-left);
+  box-sizing: border-box;
+}
+
+.page--type-c .masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18pt;
+  padding-top: 6pt;
+}
+
+.page--type-c .brand {
+  display: flex;
+  align-items: center;
+  gap: 12pt;
+  min-width: 0;
+}
+
+.page--type-c .brand img {
+  width: 40pt;
+  height: 40pt;
+  object-fit: cover;
+  border-radius: 999pt;
+  display: block;
+}
+
+.page--type-c .brand__name {
+  font-size: 12pt;
+  font-weight: 700;
+  color: #111;
+  letter-spacing: 0.1pt;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page--type-c .masthead__context {
+  font-size: 12.76pt;
+  font-weight: 500;
+  color: #111;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.page--type-c .hero {
+  margin-top: 56pt;
+  margin-bottom: 0;
+  overflow: visible;
+}
+
+.page--type-c .hero__title {
+  margin: 0;
+  font-size: 44pt;
+  font-weight: 800;
+  letter-spacing: 0.6pt;
+  line-height: 1.02;
+  color: var(--ink);
+}
+
+.page--type-c .hero__subtitle {
+  margin-top: 16pt;
+  font-size: 34pt;
+  font-weight: 800;
+  letter-spacing: 0.4pt;
+  line-height: 1.04;
+  color: var(--accent);
+}
+
+.page--type-c .lead {
+  margin-top: 24pt;
+  max-width: 160mm;
+}
+
+.page--type-c .label-row {
+  display: flex;
+  align-items: center;
+  gap: 14pt;
+}
+
+.page--type-c .label-row__icon {
+  width: 47.8pt;
+  height: 47.8pt;
+  border-radius: 999pt;
+  background: var(--accent);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.page--type-c .label-row__icon svg {
+  width: 28pt;
+  height: 28pt;
+  display: block;
+}
+
+.page--type-c .label-row__text {
+  font-size: 18.5pt;
+  font-weight: 800;
+  letter-spacing: 2pt;
+  color: var(--ink);
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.page--type-c .intro {
+  margin-top: 14pt;
+  margin-bottom: 0;
+  max-width: 160mm;
+  font-size: 11.5pt;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.page--type-c .content-grid {
+  margin-top: 24pt;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64mm;
+  gap: 12mm;
+  align-items: start;
+}
+
+.page--type-c .content-grid--no-sidebar {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.page--type-c .content-grid__main {
+  min-width: 0;
+  font-size: 11pt;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.page--type-c .content-grid__main > :first-child {
+  margin-top: 0;
+}
+
+.page--type-c .content-grid__main p {
+  margin: 0 0 10pt 0;
+}
+
+.page--type-c .content-grid__main ul,
+.page--type-c .content-grid__main ol {
+  margin: 0 0 10pt 0;
+  padding-left: 18pt;
+}
+
+.page--type-c .content-grid__main li {
+  margin: 0 0 6pt 0;
+}
+
+.page--type-c .content-grid__main h2 {
+  margin: 18pt 0 8pt 0;
+  font-size: 12.5pt;
+  font-weight: 800;
+  letter-spacing: 1.2pt;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.page--type-c .content-grid__main h3 {
+  margin: 14pt 0 6pt 0;
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.page--type-c .content-grid__sidebar {
+  width: 64mm;
+  background: var(--box-bg);
+  padding: 10mm 8mm;
+  box-sizing: border-box;
+  break-inside: avoid;
+}
+
+.page--type-c .sidebar__title {
+  margin: 0 0 12pt 0;
+  font-size: 11pt;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.page--type-c .sidebar-item + .sidebar-item {
+  margin-top: 14pt;
+}
+
+.page--type-c .sidebar-item__title {
+  font-size: 10.5pt;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 6pt 0;
+}
+
+.page--type-c .sidebar-item__text {
+  font-size: 9.2pt;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+.page--type-c .sidebar__extra {
+  margin-top: 12pt;
+  font-size: 9.2pt;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.page--type-c h2,
+.page--type-c h3 {
+  break-after: avoid;
+}
+
+.page--type-c .content-grid__sidebar:empty {
+  display: none;
+}
