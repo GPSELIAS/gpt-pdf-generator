@@ -1,0 +1,72 @@
+<div class="type-c-intro">
+  <div class="type-c-intro__top-band">
+    <div class="type-c-intro__header">
+      <div class="type-c-intro__header-left">
+        <div class="type-c-intro__brand">
+          <div class="type-c-intro__brand-logo">
+            <img src="assets/gpsholding.png" alt="GPS Group Holding" />
+          </div>
+          <div class="type-c-intro__brand-name">{{ section.brand_name }}</div>
+        </div>
+      </div>
+      <div class="type-c-intro__header-right">
+        <div class="type-c-intro__context-right">{{ section.context_right }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="type-c-intro__page">
+    <div class="type-c-intro__left-band"></div>
+
+    <div class="type-c-intro__content">
+      <div class="type-c-intro__title">{{ section.title }}</div>
+
+      <div class="type-c-intro__section-label">
+        <div class="type-c-intro__section-label-icon">
+          <svg class="type-c-intro__section-label-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5" />
+            <path d="M9.5 10.2c.5-1.2 1.6-2 2.9-2 1.8 0 3.1 1.3 3.1 2.9 0 1.4-.9 2.2-2 2.8-.9.5-1.4 1.1-1.4 2.1v.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M12 17.8h.01" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="type-c-intro__section-label-text">{{ section.section_label }}</div>
+      </div>
+
+      <div class="type-c-intro__lead">
+        <div class="type-c-intro__lead-text">{{ section.intro }}</div>
+      </div>
+
+      <div class="type-c-intro__subheading">{{ section.subheading }}</div>
+
+      <div class="type-c-intro__body">
+        <div class="type-c-intro__body-left">
+          <div class="type-c-intro__body-left-inner">{{ section.body_left | safe }}</div>
+        </div>
+
+        {% if section.sidebar_items %}
+          <div class="type-c-intro__sidebar">
+            <div class="type-c-intro__sidebar-inner">
+              {% for item in section.sidebar_items %}
+                <div class="sidebar-item">
+                  <div class="sidebar-item__title">{{ item.title }}</div>
+                  <div class="sidebar-item__text">{{ item.text }}</div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="type-c-intro__footer">
+      <div class="type-c-intro__footer-line"></div>
+      <div class="type-c-intro__footer-row">
+        <div class="type-c-intro__footer-left">{{ section.footer_left }}</div>
+        <div class="type-c-intro__page-number">
+          <div class="type-c-intro__page-number-text">{{ section.page_number }}</div>
+          <div class="type-c-intro__page-number-underline"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
