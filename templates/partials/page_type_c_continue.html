@@ -1,18 +1,12 @@
-<div class="type-c-continue">
-  <div class="type-c-continue__top-band">
-    <div class="type-c-continue__header">
-      <div class="type-c-continue__header-left">
-        <div class="type-c-continue__brand">
-          <div class="type-c-continue__brand-logo">
-            <img src="assets/gpsholding.png" alt="GPS Group Holding" />
-          </div>
-          <div class="type-c-continue__brand-name">{{ section.brand_name }}</div>
-        </div>
-      </div>
-      <div class="type-c-continue__header-right">
-        <div class="type-c-continue__context-right">{{ section.context_right }}</div>
-      </div>
+<div class="type-c-continue page-break">
+  <div class="type-c-continue__top-band"></div>
+
+  <div class="type-c-continue__header">
+    <div class="type-c-continue__brand">
+      <img src="assets/gpsholding.png" alt="GPS Group Holding">
+      <div class="type-c-continue__brand-name">{{ section.brand_name }}</div>
     </div>
+    <div class="type-c-continue__context-right">{{ section.context_right }}</div>
   </div>
 
   <div class="type-c-continue__page">
@@ -23,7 +17,7 @@
 
       <div class="type-c-continue__body">
         <div class="type-c-continue__body-left">
-          <div class="type-c-continue__body-left-inner">{{ section.body_left | safe }}</div>
+          {{ section.body_left | safe }}
         </div>
 
         {% if section.sidebar_items %}
@@ -42,12 +36,11 @@
     </div>
 
     <div class="type-c-continue__footer">
-      <div class="type-c-continue__footer-line"></div>
-      <div class="type-c-continue__footer-row">
-        <div class="type-c-continue__footer-left">{{ section.footer_left }}</div>
-        <div class="type-c-continue__page-number">
-          <div class="type-c-continue__page-number-text">{{ section.page_number }}</div>
-          <div class="type-c-continue__page-number-underline"></div>
+      <div class="type-c-continue__footer-line footer-line"></div>
+      <div class="type-c-continue__footer-row footer-row">
+        <div class="type-c-continue__footer-left footer-left">{{ section.footer_left }}</div>
+        <div class="type-c-continue__page-number page-number">
+          <span class="type-c-continue__page-number-text">{{ section.page_number }}</span>
         </div>
       </div>
     </div>
