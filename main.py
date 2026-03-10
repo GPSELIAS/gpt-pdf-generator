@@ -14,7 +14,7 @@ import hashlib
 import uuid
 import re
 
-app = FastAPI(title="PDF Generator", version="4.0.0")
+app = FastAPI(title="PDF Generator", version="5.0.0")
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -90,27 +90,54 @@ def _normalize_text(text: str) -> str:
 
 def _split_paragraphs(text: str) -> list[str]:
     text = _normalize_text(text)
-
     if not text:
         return []
-
     paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
     return paragraphs
+
+
+def _looks_like_list(paragraphs: list[str]) -> bool:
+    """
+    Erkennt Listen wie:
+    1. Punkt
+    2. Punkt
+    - Punkt
+    • Punkt
+    """
+    pattern = r"^(\d+[\.\)]|[-•])\s+"
+    matches = sum(1 for p in paragraphs if re.match(pattern, p))
+    return matches >= 3
 
 
 def _build_sections(req: DocumentRequest) -> list[dict]:
 
     paragraphs = _split_paragraphs(req.content)
 
-    sections = []
+    if not paragraphs:
+        return []
 
+    # Wenn keine Liste → normale Inhaltsseite
+    if not _looks_like_list(paragraphs):
+
+        return [
+            {
+                "layout": "type_c",
+                "title": req.title,
+                "subtitle": req.subtitle,
+                "intro": paragraphs[0] if len(paragraphs) > 0 else "",
+                "body_left": "<p>" + "</p><p>".join(paragraphs[1:]) + "</p>" if len(paragraphs) > 1 else "",
+                "sidebar_items": [],
+            }
+        ]
+
+    sections = []
     index = 0
 
     while index < len(paragraphs):
 
         remaining = len(paragraphs) - index
 
-        # Wenn viele Punkte → type_b Layout
+        # Viele Punkte → type_b
         if remaining >= 6:
 
             chunk = paragraphs[index:index + 6]
@@ -174,7 +201,8 @@ def _render_pdf_bytes(req: DocumentRequest) -> bytes:
         document_title=req.title,
         title=req.title,
         subtitle=req.subtitle,
-        date=datetime.now().strftime("%d.%m.%Y"),
+        brand_name="GPS Group Holding",
+        footer_text="Kompetenz und Qualität auf höchstem Niveau",
         sections=sections,
         end_title="Vielen Dank",
         end_text=req.subtitle,
