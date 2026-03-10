@@ -1,0 +1,43 @@
+<section class="page page--content">
+  <div class="title-xl">{{ section.title }}</div>
+  <div class="intro">{{ section.intro }}</div>
+
+  {% if section.subtitle %}
+    <div class="card__title">{{ section.subtitle }}</div>
+  {% endif %}
+
+  <div class="cards-2x2">
+    <div class="card">
+      <div class="card__num"><span>01</span></div>
+      <div>
+        <div class="card__title">{{ section.product_1_title }}</div>
+        <p class="card__text">{{ section.product_1_text }}</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__num"><span>02</span></div>
+      <div>
+        <div class="card__title">{{ section.product_2_title }}</div>
+        <p class="card__text">{{ section.product_2_text }}</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__num"><span>03</span></div>
+      <div>
+        <div class="card__title">{{ section.product_3_title }}</div>
+        <p class="card__text">{{ section.product_3_text }}</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__num"><span>04</span></div>
+      <div>
+        <div class="card__title">{{ section.product_4_title }}</div>
+        <p class="card__text">{{ section.product_4_text }}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
