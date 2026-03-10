@@ -14,7 +14,7 @@ import hashlib
 import uuid
 import re
 
-app = FastAPI(title="PDF Generator", version="5.1.0")
+app = FastAPI(title="PDF Generator", version="6.0.0")
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -96,16 +96,6 @@ def _split_paragraphs(text: str) -> list[str]:
 
 
 def _looks_like_list(paragraphs: list[str]) -> bool:
-    """
-    Erkennt echte Listen wie:
-    1. Punkt
-    2) Punkt
-    - Punkt
-    • Punkt
-
-    Es muss mindestens 3 Treffer geben und mindestens die Hälfte
-    der Absätze muss listenartig aussehen.
-    """
     pattern = r"^(\d+[\.\)]|[-•])\s+"
     matches = sum(1 for p in paragraphs if re.match(pattern, p))
     return matches >= 3 and matches >= max(3, len(paragraphs) // 2)
@@ -122,73 +112,63 @@ def _paragraphs_to_html(paragraphs: list[str]) -> str:
 
 
 def _build_type_c_sections(req: DocumentRequest, paragraphs: list[str]) -> list[dict]:
-    """
-    Fließtext wird in mehrere type_c-Inhaltsseiten aufgeteilt,
-    damit weiterhin gilt:
-    Cover -> mehrere type_c Seiten -> Closing
-    """
-    sections: list[dict] = []
 
-    first_page_chunk_size = 4
-    next_page_chunk_size = 5
+    sections = []
 
-    # Erste Seite mit Intro + erstem Block
-    first_chunk = paragraphs[:first_page_chunk_size]
-    remaining = paragraphs[first_page_chunk_size:]
-
-    first_intro = first_chunk[0] if first_chunk else ""
-    first_body = _paragraphs_to_html(first_chunk[1:]) if len(first_chunk) > 1 else ""
+    first_chunk = paragraphs[:4]
+    remaining = paragraphs[4:]
 
     sections.append(
         {
-            "layout": "type_c",
+            "layout": "type_c_intro",
             "title": req.title,
-            "subtitle": req.subtitle,
-            "intro": first_intro,
-            "body_left": first_body,
-            "body_right": "",
-            "sidebar_title": "",
+            "section_label": "",
+            "intro": first_chunk[0] if first_chunk else "",
+            "subheading": req.subtitle,
+            "body_left": _paragraphs_to_html(first_chunk[1:]),
             "sidebar_items": [],
             "brand_name": "GPS Group Holding",
             "context_right": req.subtitle,
-            "section_label": "",
+            "footer_left": "Kompetenz und Qualität auf höchstem Niveau",
         }
     )
 
     index = 0
+
     while index < len(remaining):
-        chunk = remaining[index:index + next_page_chunk_size]
+
+        chunk = remaining[index:index + 5]
 
         sections.append(
             {
-                "layout": "type_c",
-                "title": req.title,
-                "subtitle": "",
-                "intro": "",
+                "layout": "type_c_continue",
+                "subheading": req.subtitle,
                 "body_left": _paragraphs_to_html(chunk),
-                "body_right": "",
-                "sidebar_title": "",
                 "sidebar_items": [],
                 "brand_name": "GPS Group Holding",
                 "context_right": req.subtitle,
-                "section_label": "",
+                "footer_left": "Kompetenz und Qualität auf höchstem Niveau",
             }
         )
 
-        index += next_page_chunk_size
+        index += 5
 
     return sections
 
 
 def _build_type_list_sections(req: DocumentRequest, paragraphs: list[str]) -> list[dict]:
-    sections: list[dict] = []
+
+    sections = []
     cleaned = [_strip_list_marker(p) for p in paragraphs]
 
     index = 0
+
     while index < len(cleaned):
+
         remaining = len(cleaned) - index
 
         if remaining >= 6:
+
             chunk = cleaned[index:index + 6]
 
             sections.append(
@@ -208,6 +188,7 @@ def _build_type_list_sections(req: DocumentRequest, paragraphs: list[str]) -> li
             index += 6
 
         else:
+
             chunk = cleaned[index:index + 4]
 
             sections.append(
@@ -232,24 +213,11 @@ def _build_type_list_sections(req: DocumentRequest, paragraphs: list[str]) -> li
 
 
 def _build_sections(req: DocumentRequest) -> list[dict]:
+
     paragraphs = _split_paragraphs(req.content)
 
     if not paragraphs:
-        return [
-            {
-                "layout": "type_c",
-                "title": req.title,
-                "subtitle": req.subtitle,
-                "intro": req.content.strip(),
-                "body_left": "",
-                "body_right": "",
-                "sidebar_title": "",
-                "sidebar_items": [],
-                "brand_name": "GPS Group Holding",
-                "context_right": req.subtitle,
-                "section_label": "",
-            }
-        ]
+        return []
 
     if _looks_like_list(paragraphs):
         return _build_type_list_sections(req, paragraphs)
@@ -258,6 +226,7 @@ def _build_sections(req: DocumentRequest) -> list[dict]:
 
 
 def _render_pdf_bytes(req: DocumentRequest) -> bytes:
+
     template_name = "master.html"
 
     try:
@@ -299,6 +268,7 @@ def root():
 
 @app.post("/generate", response_model=PdfLinkResponse)
 def generate(request: Request, body: DocumentRequest):
+
     secret = os.getenv("PDF_API_KEY")
 
     if not secret:
@@ -324,6 +294,7 @@ def generate(request: Request, body: DocumentRequest):
     token = _make_token(payload, secret)
 
     base_url = str(request.base_url).rstrip("/")
+
     url = f"{base_url}/download/{token}"
 
     return PdfLinkResponse(filename=filename, url=url)
@@ -331,18 +302,21 @@ def generate(request: Request, body: DocumentRequest):
 
 @app.get("/download/{token}")
 def download(token: str):
+
     secret = os.getenv("PDF_API_KEY")
 
     if not secret:
         raise HTTPException(status_code=500, detail="PDF_API_KEY not set")
 
     payload = _verify_token(token, secret)
+
     doc_id = payload.get("id")
 
     if doc_id not in DOCUMENT_STORE:
         raise HTTPException(status_code=404, detail="Document not found")
 
     pdf_bytes = DOCUMENT_STORE[doc_id]
+
     filename = payload.get("filename", "document.pdf")
 
     return Response(
