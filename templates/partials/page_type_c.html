@@ -1,368 +1,87 @@
-<!doctype html>
-<html lang="de">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ section.title }}</title>
-    <style>
-      @page {
-        size: 842.25pt 1190.25pt;
-        margin: 0;
-      }
+<section class="page page--content page--type-c">
+  <div class="decor decor--top"></div>
+  <div class="decor decor--left"></div>
 
-      :root {
-        --accent: #ffca79;
-        --page-bg: #f4f6fc;
-        --box-bg: #cae8ff;
-        --ink: #0b1433;
-        --ink-soft: #1b2550;
+  <main class="content">
+    <div class="masthead">
+      <div class="brand">
+        <img src="assets/gpsholding.png" alt="GPS Group Holding" />
+        <div class="brand__name">{{ section.brand_name }}</div>
+      </div>
+      <div class="masthead__context">{{ section.context_right }}</div>
+    </div>
 
-        --pad-left: 94.6pt; /* aligns with original left text start */
-        --pad-right: 84.2pt;
-        --content-top: 46pt;
+    <header class="hero">
+      <h1 class="hero__title">{{ section.title }}</h1>
+      {% if section.subtitle %}
+      <div class="hero__subtitle">{{ section.subtitle }}</div>
+      {% endif %}
+    </header>
 
-        --top-band-h: 140.6pt;
-        --left-band-w: 66.84pt;
-        --left-band-top: 163.1pt;
-      }
+    {% if section.section_label or section.intro %}
+    <section class="lead">
+      {% if section.section_label %}
+      <div class="label-row">
+        <span class="label-row__icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M20 18.5L33.8 14.3c1.1-.4 2.2.5 2.2 1.6v16.2c0 1.1-1.1 2-2.2 1.6L20 29.5"
+              stroke="#ffffff"
+              stroke-width="2.6"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M20 19.2H14.7c-2 0-3.7 1.7-3.7 3.7v2.2c0 2 1.7 3.7 3.7 3.7H20"
+              stroke="#ffffff"
+              stroke-width="2.6"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M18.2 30.2l2.6 6.2c.6 1.4-.1 3-1.5 3.6-1.4.6-3-.1-3.6-1.5l-2.9-6.9"
+              stroke="#ffffff"
+              stroke-width="2.6"
+              stroke-linecap="round"
+            />
+            <path
+              d="M37.5 19.2c2.1 1.2 3.5 3.5 3.5 6.0s-1.4 4.8-3.5 6.0"
+              stroke="#ffffff"
+              stroke-width="2.6"
+              stroke-linecap="round"
+            />
+          </svg>
+        </span>
+        <div class="label-row__text">{{ section.section_label }}</div>
+      </div>
+      {% endif %}
 
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        background: var(--page-bg);
-        color: var(--ink);
-        font-family: Inter, "Open Sans", "DejaVu Sans", Arial, sans-serif;
-      }
+      {% if section.intro %}
+      <div class="intro">{{ section.intro }}</div>
+      {% endif %}
+    </section>
+    {% endif %}
 
-      .page {
-        position: relative;
-        min-height: 1190.25pt;
-        background: var(--page-bg);
-      }
+    {% set _has_sidebar = section.sidebar_title or section.sidebar_items or section.body_right %}
+    <section class="content-grid{% if not _has_sidebar %} content-grid--no-sidebar{% endif %}">
+      <div class="content-grid__main">{{ section.body_left | safe }}</div>
 
-      /* Decorative elements may be fixed to repeat on every page in WeasyPrint */
-      .decor {
-        position: fixed;
-        z-index: 0;
-        pointer-events: none;
-      }
-
-      .decor--top {
-        left: 0;
-        top: 0;
-        width: 842.25pt;
-        height: var(--top-band-h);
-        background: var(--accent);
-      }
-
-      .decor--left {
-        left: 0;
-        top: var(--left-band-top);
-        width: var(--left-band-w);
-        height: 930.6pt;
-        background: var(--accent);
-      }
-
-      .content {
-        position: relative;
-        z-index: 1;
-        padding: var(--content-top) var(--pad-right) 90pt var(--pad-left);
-        box-sizing: border-box;
-      }
-
-      .masthead {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 18pt;
-        padding-top: 6pt;
-      }
-
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 12pt;
-        min-width: 0;
-      }
-
-      .brand img {
-        width: 40pt;
-        height: 40pt;
-        object-fit: cover;
-        border-radius: 999pt;
-        display: block;
-      }
-
-      .brand__name {
-        font-size: 12pt;
-        font-weight: 700;
-        color: #111;
-        letter-spacing: 0.1pt;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .masthead__context {
-        font-size: 12.76pt;
-        font-weight: 500;
-        color: #111;
-        white-space: nowrap;
-      }
-
-      .hero {
-        margin-top: 56pt;
-      }
-
-      .hero__title {
-        margin: 0;
-        font-size: 76.2pt;
-        font-weight: 800;
-        letter-spacing: 1.2pt;
-        color: var(--ink);
-      }
-
-      .hero__subtitle {
-        margin-top: 28pt;
-        font-size: 71.6pt;
-        font-weight: 800;
-        letter-spacing: 1.2pt;
-        color: var(--accent);
-      }
-
-      .lead {
-        margin-top: 34pt;
-        max-width: 640pt;
-      }
-
-      .label-row {
-        display: flex;
-        align-items: center;
-        gap: 14pt;
-      }
-
-      .label-row__icon {
-        width: 47.8pt;
-        height: 47.8pt;
-        border-radius: 999pt;
-        background: var(--accent);
-        display: grid;
-        place-items: center;
-        flex: 0 0 auto;
-      }
-
-      .label-row__icon svg {
-        width: 28pt;
-        height: 28pt;
-        display: block;
-      }
-
-      .label-row__text {
-        font-size: 18.5pt;
-        font-weight: 800;
-        letter-spacing: 2.4pt;
-        color: var(--ink);
-        text-transform: uppercase;
-        line-height: 1.1;
-      }
-
-      .intro {
-        margin-top: 18pt;
-        font-size: 15.9pt;
-        line-height: 1.37;
-        color: var(--ink-soft);
-      }
-
-      .content-grid {
-        margin-top: 42pt;
-        display: flex;
-        align-items: flex-start;
-        gap: 36pt;
-      }
-
-      .content-grid__main {
-        flex: 1 1 auto;
-        min-width: 0;
-        font-size: 17.8pt;
-        line-height: 1.37;
-        color: var(--ink-soft);
-      }
-
-      .content-grid__main :first-child {
-        margin-top: 0;
-      }
-
-      .content-grid__main p {
-        margin: 0 0 18pt 0;
-      }
-
-      .content-grid__main ul,
-      .content-grid__main ol {
-        margin: 0 0 18pt 0;
-        padding-left: 22pt;
-      }
-
-      .content-grid__main li {
-        margin: 0 0 8pt 0;
-      }
-
-      .content-grid__main h2 {
-        margin: 28pt 0 12pt 0;
-        font-size: 17.5pt;
-        font-weight: 800;
-        letter-spacing: 2pt;
-        text-transform: uppercase;
-        color: var(--ink);
-      }
-
-      .content-grid__main h3 {
-        margin: 22pt 0 10pt 0;
-        font-size: 14pt;
-        font-weight: 700;
-        color: var(--ink);
-      }
-
-      .content-grid__sidebar {
-        flex: 0 0 220.27pt;
-        background: var(--box-bg);
-        padding: 36pt 32pt;
-        box-sizing: border-box;
-        break-inside: avoid;
-      }
-
-      .sidebar__title {
-        margin: 0 0 16pt 0;
-        font-size: 14pt;
-        font-weight: 700;
-        color: var(--ink);
-      }
-
-      .sidebar-item + .sidebar-item {
-        margin-top: 22pt;
-      }
-
-      .sidebar-item__title {
-        font-size: 14pt;
-        font-weight: 700;
-        color: var(--ink);
-        margin: 0 0 10pt 0;
-      }
-
-      .sidebar-item__text {
-        font-size: 9.8pt;
-        line-height: 1.4;
-        color: var(--ink-soft);
-        margin: 0;
-      }
-
-      .sidebar__extra {
-        margin-top: 18pt;
-        font-size: 9.8pt;
-        line-height: 1.4;
-        color: var(--ink-soft);
-      }
-
-      /* If the sidebar is intentionally omitted, let main content breathe */
-      .content-grid--no-sidebar .content-grid__sidebar {
-        display: none;
-      }
-
-      /* Simple, predictable page breaks for long content */
-      h2,
-      h3 {
-        break-after: avoid;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="page type-c">
-      <div class="decor decor--top"></div>
-      <div class="decor decor--left"></div>
-
-      <main class="content">
-        <div class="masthead">
-          <div class="brand">
-            <img src="assets/gpsholding.png" alt="GPS Group Holding" />
-            <div class="brand__name">{{ section.brand_name }}</div>
-          </div>
-          <div class="masthead__context">{{ section.context_right }}</div>
-        </div>
-
-        <header class="hero">
-          <h1 class="hero__title">{{ section.title }}</h1>
-          {% if section.subtitle %}
-          <div class="hero__subtitle">{{ section.subtitle }}</div>
-          {% endif %}
-        </header>
-
-        {% if section.section_label or section.intro %}
-        <section class="lead">
-          {% if section.section_label %}
-          <div class="label-row">
-            <span class="label-row__icon" aria-hidden="true">
-              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M20 18.5L33.8 14.3c1.1-.4 2.2.5 2.2 1.6v16.2c0 1.1-1.1 2-2.2 1.6L20 29.5"
-                  stroke="#ffffff"
-                  stroke-width="2.6"
-                  stroke-linejoin="round"
-                />
-                <path
-                  d="M20 19.2H14.7c-2 0-3.7 1.7-3.7 3.7v2.2c0 2 1.7 3.7 3.7 3.7H20"
-                  stroke="#ffffff"
-                  stroke-width="2.6"
-                  stroke-linejoin="round"
-                />
-                <path
-                  d="M18.2 30.2l2.6 6.2c.6 1.4-.1 3-1.5 3.6-1.4.6-3-.1-3.6-1.5l-2.9-6.9"
-                  stroke="#ffffff"
-                  stroke-width="2.6"
-                  stroke-linecap="round"
-                />
-                <path
-                  d="M37.5 19.2c2.1 1.2 3.5 3.5 3.5 6.0s-1.4 4.8-3.5 6.0"
-                  stroke="#ffffff"
-                  stroke-width="2.6"
-                  stroke-linecap="round"
-                />
-              </svg>
-            </span>
-            <div class="label-row__text">{{ section.section_label }}</div>
-          </div>
-          {% endif %}
-
-          {% if section.intro %}
-          <div class="intro">{{ section.intro }}</div>
-          {% endif %}
-        </section>
+      <aside class="content-grid__sidebar">
+        {% if section.sidebar_title %}
+        <div class="sidebar__title">{{ section.sidebar_title }}</div>
         {% endif %}
 
-        {% set _has_sidebar = section.sidebar_title or section.sidebar_items or section.body_right %}
-        <section class="content-grid{% if not _has_sidebar %} content-grid--no-sidebar{% endif %}">
-          <div class="content-grid__main">{{ section.body_left | safe }}</div>
+        {% if section.sidebar_items %}
+        {% for item in section.sidebar_items %}
+        <div class="sidebar-item">
+          <div class="sidebar-item__title">{{ item.title }}</div>
+          <div class="sidebar-item__text">{{ item.text }}</div>
+        </div>
+        {% endfor %}
+        {% endif %}
 
-          <aside class="content-grid__sidebar">
-            {% if section.sidebar_title %}
-            <div class="sidebar__title">{{ section.sidebar_title }}</div>
-            {% endif %}
-
-            {% if section.sidebar_items %}
-            {% for item in section.sidebar_items %}
-            <div class="sidebar-item">
-              <div class="sidebar-item__title">{{ item.title }}</div>
-              <div class="sidebar-item__text">{{ item.text }}</div>
-            </div>
-            {% endfor %}
-            {% endif %}
-
-            {% if section.body_right %}
-            <div class="sidebar__extra">{{ section.body_right | safe }}</div>
-            {% endif %}
-          </aside>
-        </section>
-      </main>
-    </div>
-  </body>
-</html>
-
+        {% if section.body_right %}
+        <div class="sidebar__extra">{{ section.body_right | safe }}</div>
+        {% endif %}
+      </aside>
+    </section>
+  </main>
+</section>
