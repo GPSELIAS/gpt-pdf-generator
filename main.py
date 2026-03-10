@@ -14,7 +14,7 @@ import hashlib
 import uuid
 import re
 
-app = FastAPI(title="PDF Generator", version="6.0.0")
+app = FastAPI(title="PDF Generator", version="6.0.1")
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -130,10 +130,12 @@ def _build_type_c_sections(req: DocumentRequest, paragraphs: list[str]) -> list[
             "brand_name": "GPS Group Holding",
             "context_right": req.subtitle,
             "footer_left": "Kompetenz und Qualität auf höchstem Niveau",
+            "page_number": 1,
         }
     )
 
     index = 0
+    page = 2
 
     while index < len(remaining):
 
@@ -148,10 +150,12 @@ def _build_type_c_sections(req: DocumentRequest, paragraphs: list[str]) -> list[
                 "brand_name": "GPS Group Holding",
                 "context_right": req.subtitle,
                 "footer_left": "Kompetenz und Qualität auf höchstem Niveau",
+                "page_number": page,
             }
         )
 
         index += 5
+        page += 1
 
     return sections
 
