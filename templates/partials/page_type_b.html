@@ -1,65 +1,74 @@
 <section class="page page--content">
-  <div class="hero">
-    {% if section.image_1 %}
-      <img class="hero__img" src="{{ section.image_1 }}" alt="" />
-    {% else %}
-      <img class="hero__img" src="assets/Biel.png" alt="" />
-    {% endif %}
 
-    <div class="hero__overlay">
-      <div class="hero__title">{{ section.title }}</div>
-      <p class="hero__intro">{{ section.intro }}</p>
+  <div class="content-container">
+
+    <div class="hero">
+
+      {% if section.image_1 %}
+      <img class="hero__img" src="{{ section.image_1 }}" alt="">
+      {% else %}
+      <img class="hero__img" src="assets/Biel.png" alt="">
+      {% endif %}
+
+      <div class="hero__overlay">
+        <h1 class="hero__title">{{ section.title }}</h1>
+        <p class="hero__intro">{{ section.intro }}</p>
+      </div>
+
     </div>
+
+    <div class="factors">
+
+      <div class="factor">
+        <div class="factor__num">01</div>
+        <div class="factor__content">
+          <div class="factor__title">{{ section.factor_1_title }}</div>
+          <p class="factor__text">{{ section.factor_1_text }}</p>
+        </div>
+      </div>
+
+      <div class="factor">
+        <div class="factor__num">02</div>
+        <div class="factor__content">
+          <div class="factor__title">{{ section.factor_2_title }}</div>
+          <p class="factor__text">{{ section.factor_2_text }}</p>
+        </div>
+      </div>
+
+      <div class="factor">
+        <div class="factor__num">03</div>
+        <div class="factor__content">
+          <div class="factor__title">{{ section.factor_3_title }}</div>
+          <p class="factor__text">{{ section.factor_3_text }}</p>
+        </div>
+      </div>
+
+      <div class="factor">
+        <div class="factor__num">04</div>
+        <div class="factor__content">
+          <div class="factor__title">{{ section.factor_4_title }}</div>
+          <p class="factor__text">{{ section.factor_4_text }}</p>
+        </div>
+      </div>
+
+      <div class="factor">
+        <div class="factor__num">05</div>
+        <div class="factor__content">
+          <div class="factor__title">{{ section.factor_5_title }}</div>
+          <p class="factor__text">{{ section.factor_5_text }}</p>
+        </div>
+      </div>
+
+      <div class="factor">
+        <div class="factor__num">06</div>
+        <div class="factor__content">
+          <div class="factor__title">{{ section.factor_6_title }}</div>
+          <p class="factor__text">{{ section.factor_6_text }}</p>
+        </div>
+      </div>
+
+    </div>
+
   </div>
 
-  <div class="factors">
-    <div class="factor">
-      <div class="factor__num"><span>01</span></div>
-      <div>
-        <div class="factor__title">{{ section.factor_1_title }}</div>
-        <p class="factor__text">{{ section.factor_1_text }}</p>
-      </div>
-    </div>
-
-    <div class="factor">
-      <div class="factor__num"><span>02</span></div>
-      <div>
-        <div class="factor__title">{{ section.factor_2_title }}</div>
-        <p class="factor__text">{{ section.factor_2_text }}</p>
-      </div>
-    </div>
-
-    <div class="factor">
-      <div class="factor__num"><span>03</span></div>
-      <div>
-        <div class="factor__title">{{ section.factor_3_title }}</div>
-        <p class="factor__text">{{ section.factor_3_text }}</p>
-      </div>
-    </div>
-
-    <div class="factor">
-      <div class="factor__num"><span>04</span></div>
-      <div>
-        <div class="factor__title">{{ section.factor_4_title }}</div>
-        <p class="factor__text">{{ section.factor_4_text }}</p>
-      </div>
-    </div>
-
-    <div class="factor">
-      <div class="factor__num"><span>05</span></div>
-      <div>
-        <div class="factor__title">{{ section.factor_5_title }}</div>
-        <p class="factor__text">{{ section.factor_5_text }}</p>
-      </div>
-    </div>
-
-    <div class="factor">
-      <div class="factor__num"><span>06</span></div>
-      <div>
-        <div class="factor__title">{{ section.factor_6_title }}</div>
-        <p class="factor__text">{{ section.factor_6_text }}</p>
-      </div>
-    </div>
-  </div>
 </section>
-
