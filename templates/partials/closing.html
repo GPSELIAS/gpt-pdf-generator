@@ -1,42 +1,40 @@
-<section class="page page--closing">
+<section class="page page--closing closing-page">
+  <header class="closing-header">
+    <img class="closing-header__logo" src="assets/gpsholding.png" alt="GPS Group Holding" />
+    <div class="closing-header__left">{{ brand_name|default("GPS Group Holding") }}</div>
+    <div class="closing-header__right">Nister GmbH 2026</div>
+  </header>
 
-  <div class="closing-bg">
-    <img src="assets/abschluss.png" alt="">
+  <div class="closing-photo" aria-hidden="true">
+    <img class="closing-photo__img" src="assets/abschluss.png" alt="" />
   </div>
 
-  <div class="closing-overlay"></div>
+  <div class="closing-panel closing-panel--veil" aria-hidden="true"></div>
 
-  <div class="closing-content">
-
-    <h1 class="closing-title">{{ end_title }}</h1>
-
-    <p class="closing-text">
-      {{ end_text }}
-    </p>
-
+  <div class="closing-message">
+    <h1 class="closing-message__title">{{ end_title }}</h1>
+    <p class="closing-message__text">{{ end_text }}</p>
   </div>
 
-  <div class="closing-footer">
-
-    <div class="contact-grid">
-
-      <div class="contact">
-        <div class="contact__label">Address</div>
-        <p class="contact__value">{{ address }}</p>
+  <div class="closing-panel closing-panel--footer">
+    <div class="closing-contact">
+      <div class="closing-contact__item">
+        <div class="closing-contact__label">ADDRESS</div>
+        <div class="closing-contact__value">{{ address }}</div>
+        <div class="closing-contact__rule" aria-hidden="true"></div>
       </div>
 
-      <div class="contact">
-        <div class="contact__label">Telephone</div>
-        <p class="contact__value">{{ telephone }}</p>
+      <div class="closing-contact__item">
+        <div class="closing-contact__label">TELEPHONE</div>
+        <div class="closing-contact__value">{{ telephone }}</div>
+        <div class="closing-contact__rule" aria-hidden="true"></div>
       </div>
 
-      <div class="contact">
-        <div class="contact__label">Website</div>
-        <p class="contact__value">{{ website }}</p>
+      <div class="closing-contact__item">
+        <div class="closing-contact__label">WEBSITE</div>
+        <div class="closing-contact__value">{{ website }}</div>
+        <div class="closing-contact__rule" aria-hidden="true"></div>
       </div>
-
     </div>
-
   </div>
-
 </section>

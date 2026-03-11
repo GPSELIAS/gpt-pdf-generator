@@ -1,65 +1,49 @@
-<div class="type-c-intro">
-  <div class="type-c-intro__top-band"></div>
+<section class="page page--content tc-page tc-page--intro">
+  <div class="tc-header-band" aria-hidden="true"></div>
+  <div class="tc-left-band" aria-hidden="true"></div>
 
-  <div class="type-c-intro__header">
-    <div class="type-c-intro__brand">
-      <img src="assets/gpsholding.png" alt="GPS Group Holding">
-      <div class="type-c-intro__brand-name">{{ section.brand_name }}</div>
+  <img class="tc-header-logo" src="assets/gpsholding.png" alt="GPS Group Holding" />
+  <div class="tc-header-left">GPS Group Holding</div>
+  <div class="tc-header-right">Nister GmbH 2026</div>
+
+  <div class="tc-overview-title">{{ section.intro_title|default("OVERVIEW") }}</div>
+
+  <div class="tc-overview-row">
+    <div class="tc-overview-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 11v2c5 0 8-1 10-3v6l3-1v-5c2-1 4-1 5-1V8c-1 0-3 0-5 1V4l-3 1v6c-2 2-5 3-10 3Z" fill="currentColor"/>
+      </svg>
     </div>
-    <div class="type-c-intro__context-right">{{ section.context_right }}</div>
+    <div class="tc-overview-label">{{ section.intro_label|default(section.section_label)|default("A BRIEF STORY ABOUT THE PRODUCT") }}</div>
   </div>
 
-  <div class="type-c-intro__page">
-    <div class="type-c-intro__left-band"></div>
+  <div class="tc-overview-text">
+    {{ section.intro }}
+  </div>
 
-    <div class="type-c-intro__content">
-      <div class="type-c-intro__title">{{ section.title }}</div>
+  <div class="tc-chapter-title">{{ section.title }}</div>
+  <div class="tc-chapter-subtitle">{{ section.subheading }}</div>
 
-      <div class="type-c-intro__section-label">
-        <div class="type-c-intro__section-label-icon">
-          <svg class="type-c-intro__section-label-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5" />
-            <path d="M9.5 10.2c.5-1.2 1.6-2 2.9-2 1.8 0 3.1 1.3 3.1 2.9 0 1.4-.9 2.2-2 2.8-.9.5-1.4 1.1-1.4 2.1v.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M12 17.8h.01" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-          </svg>
-        </div>
-        <div class="type-c-intro__section-label-text">{{ section.section_label }}</div>
-      </div>
+  <div class="tc-body-left tc-body-left--intro prose">
+      {{ section.body_left | safe }}
 
-      <div class="type-c-intro__lead">
-        <div class="type-c-intro__lead-text">{{ section.intro }}</div>
-      </div>
+  </div>
 
-      <div class="type-c-intro__subheading">{{ section.subheading }}</div>
-
-      <div class="type-c-intro__body">
-        <div class="type-c-intro__body-left">
-          {{ section.body_left | safe }}
-        </div>
-
-        {% if section.sidebar_items %}
-          <div class="type-c-intro__sidebar">
-            <div class="type-c-intro__sidebar-inner">
-              {% for item in section.sidebar_items %}
-                <div class="sidebar-item">
-                  <div class="sidebar-item__title">{{ item.title }}</div>
-                  <div class="sidebar-item__text">{{ item.text }}</div>
-                </div>
-              {% endfor %}
-            </div>
+  {% if section.sidebar_items %}
+    <aside class="tc-sidebar tc-sidebar--intro">
+      <div class="tc-sidebar__inner">
+        {% for item in section.sidebar_items %}
+          <div class="sidebar-item">
+            <div class="sidebar-item__title">{{ item.title }}</div>
+            <div class="sidebar-item__text">{{ item.text | safe }}</div>
           </div>
-        {% endif %}
+        {% endfor %}
       </div>
-    </div>
+    </aside>
+  {% endif %}
 
-    <div class="type-c-intro__footer">
-      <div class="type-c-intro__footer-line footer-line"></div>
-      <div class="type-c-intro__footer-row footer-row">
-        <div class="type-c-intro__footer-left footer-left">{{ section.footer_left }}</div>
-        <div class="type-c-intro__page-number page-number">
-          <span class="type-c-intro__page-number-text">{{ section.page_number }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+  <div class="tc-footer-line" aria-hidden="true"></div>
+  <div class="tc-footer-left">{{ footer_text|default("Kompetenz und Qualität auf höchstem Niveau") }}</div>
+  <div class="tc-footer-page">{{ section.page_number|default("") }}</div>
+  <div class="tc-footer-page-underline" aria-hidden="true"></div>
+</section>

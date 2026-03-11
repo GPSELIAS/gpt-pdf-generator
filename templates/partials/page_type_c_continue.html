@@ -1,48 +1,20 @@
-<div class="type-c-continue page-break">
-  <div class="type-c-continue__top-band"></div>
+<section class="page page--content tc-page tc-page--continue">
+  <div class="tc-header-band" aria-hidden="true"></div>
+  <div class="tc-left-band" aria-hidden="true"></div>
 
-  <div class="type-c-continue__header">
-    <div class="type-c-continue__brand">
-      <img src="assets/gpsholding.png" alt="GPS Group Holding">
-      <div class="type-c-continue__brand-name">{{ section.brand_name }}</div>
-    </div>
-    <div class="type-c-continue__context-right">{{ section.context_right }}</div>
+  <img class="tc-header-logo tc-header-logo--continue" src="assets/gpsholding.png" alt="GPS Group Holding" />
+  <div class="tc-header-left tc-header-left--continue">GPS Group Holding</div>
+  <div class="tc-header-right tc-header-right--continue">Nister GmbH 2026</div>
+
+  <div class="tc-chapter-title tc-chapter-title--continue">{{ section.title }}</div>
+  <div class="tc-chapter-subtitle tc-chapter-subtitle--continue">{{ section.subheading }}</div>
+
+  <div class="tc-body-left tc-body-left--continue prose">
+    {{ section.body_left | safe }}
   </div>
 
-  <div class="type-c-continue__page">
-    <div class="type-c-continue__left-band"></div>
-
-    <div class="type-c-continue__content">
-      <div class="type-c-continue__subheading">{{ section.subheading }}</div>
-
-      <div class="type-c-continue__body">
-        <div class="type-c-continue__body-left">
-          {{ section.body_left | safe }}
-        </div>
-
-        {% if section.sidebar_items %}
-          <div class="type-c-continue__sidebar">
-            <div class="type-c-continue__sidebar-inner">
-              {% for item in section.sidebar_items %}
-                <div class="sidebar-item">
-                  <div class="sidebar-item__title">{{ item.title }}</div>
-                  <div class="sidebar-item__text">{{ item.text }}</div>
-                </div>
-              {% endfor %}
-            </div>
-          </div>
-        {% endif %}
-      </div>
-    </div>
-
-    <div class="type-c-continue__footer">
-      <div class="type-c-continue__footer-line footer-line"></div>
-      <div class="type-c-continue__footer-row footer-row">
-        <div class="type-c-continue__footer-left footer-left">{{ section.footer_left }}</div>
-        <div class="type-c-continue__page-number page-number">
-          <span class="type-c-continue__page-number-text">{{ section.page_number }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+  <div class="tc-footer-line" aria-hidden="true"></div>
+  <div class="tc-footer-left">{{ footer_text|default("Kompetenz und Qualität auf höchstem Niveau") }}</div>
+  <div class="tc-footer-page">{{ section.page_number|default("") }}</div>
+  <div class="tc-footer-page-underline" aria-hidden="true"></div>
+</section>

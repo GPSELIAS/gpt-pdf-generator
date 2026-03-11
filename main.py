@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from weasyprint import HTML
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, Optional, TypedDict
 from pathlib import Path
 import os
 import json
@@ -95,133 +95,285 @@ def _split_paragraphs(text: str) -> list[str]:
     return [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
 
 
-def _looks_like_list(paragraphs: list[str]) -> bool:
-    pattern = r"^(\d+[\.\)]|[-•])\s+"
-    matches = sum(1 for p in paragraphs if re.match(pattern, p))
-    return matches >= 3 and matches >= max(3, len(paragraphs) // 2)
+_LIST_ITEM_RE = re.compile(r"^(\d+[\.\)]|[-•])\s+")
+_MD_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+_NUMBERED_HEADING_RE = re.compile(r"^(\d{1,2})(?:[\.\)]|\s*[-–—])\s+(.+?)\s*$")
 
 
-def _strip_list_marker(text: str) -> str:
-    return re.sub(r"^(\d+[\.\)]|[-•])\s+", "", text).strip()
+class _Block(TypedDict):
+    kind: Literal["paragraph", "list", "heading"]
+    text: str
+    level: int
+    items: list[str]
 
 
-def _paragraphs_to_html(paragraphs: list[str]) -> str:
-    if not paragraphs:
-        return ""
-    return "<p>" + "</p><p>".join(paragraphs) + "</p>"
+def _word_count(text: str) -> int:
+    return len(re.findall(r"\w+", text, flags=re.UNICODE))
 
 
-def _build_type_c_sections(req: DocumentRequest, paragraphs: list[str]) -> list[dict]:
+def _classify_heading(paragraph: str) -> Optional[tuple[int, str]]:
+    """
+    Returns (level, text) for headings, otherwise None.
+    Level 1 is a chapter heading (new section), >=2 are in-section subheadings.
+    """
+    p = paragraph.strip()
+    if not p:
+        return None
+
+    m = _MD_HEADING_RE.match(p)
+    if m:
+        level = len(m.group(1))
+        text = m.group(2).strip()
+        return max(1, min(level, 6)), text
+
+    m = _NUMBERED_HEADING_RE.match(p)
+    if m and len(p) <= 90:
+        num = m.group(1)
+        rest = m.group(2).strip()
+        return 1, f"{num}. {rest}"
+
+    # Short, "heading-ish" lines (all-caps, or ends with colon)
+    single_line = "\n" not in p and len(p) <= 70
+    if single_line and p.endswith(":"):
+        return 1, p[:-1].strip()
+
+    if single_line:
+        letters = re.sub(r"[^A-Za-zÄÖÜäöüß]+", "", p)
+        if letters and len(letters) >= 6:
+            upper_ratio = sum(1 for c in letters if c.isupper()) / max(1, len(letters))
+            if upper_ratio >= 0.9 and not p.endswith("."):
+                return 1, p.strip()
+
+    return None
+
+
+def _parse_blocks(paragraphs: list[str]) -> list[_Block]:
+    blocks: list[_Block] = []
+    i = 0
+    while i < len(paragraphs):
+        p = paragraphs[i].strip()
+        if not p:
+            i += 1
+            continue
+
+        h = _classify_heading(p)
+        if h:
+            level, text = h
+            blocks.append({"kind": "heading", "text": text, "level": level, "items": []})
+            i += 1
+            continue
+
+        if _LIST_ITEM_RE.match(p):
+            items: list[str] = []
+            while i < len(paragraphs):
+                cand = paragraphs[i].strip()
+                if not cand:
+                    break
+                # Prevent numbered chapter headings (e.g. "2. Kapitel ...") from
+                # being swallowed as list items when they appear right after a list.
+                if _classify_heading(cand):
+                    break
+                if not _LIST_ITEM_RE.match(cand):
+                    break
+                items.append(_LIST_ITEM_RE.sub("", cand).strip())
+                i += 1
+            blocks.append({"kind": "list", "items": items, "text": "", "level": 0})
+            continue
+
+        blocks.append({"kind": "paragraph", "text": p, "level": 0, "items": []})
+        i += 1
+
+    return blocks
+
+
+def _split_into_chapters(req: DocumentRequest, blocks: list[_Block]) -> list[dict]:
+    chapters: list[dict] = []
+
+    current_title = req.title.strip() or "Dokument"
+    current_blocks: list[_Block] = []
+
+    def flush():
+        nonlocal current_title, current_blocks
+        if current_blocks:
+            chapters.append({"title": current_title, "blocks": current_blocks})
+        current_blocks = []
+
+    for b in blocks:
+        if b["kind"] == "heading" and b["level"] == 1:
+            flush()
+            current_title = b["text"].strip() or current_title
+            continue
+        current_blocks.append(b)
+
+    flush()
+
+    if not chapters and blocks:
+        chapters = [{"title": current_title, "blocks": blocks}]
+
+    return chapters
+
+
+def _block_words(b: _Block) -> int:
+    if b["kind"] == "paragraph":
+        return _word_count(b["text"])
+    if b["kind"] == "heading":
+        return 8 + _word_count(b["text"])
+    if b["kind"] == "list":
+        # list items tend to consume more vertical space than plain text
+        return sum(_word_count(it) for it in b["items"]) + 10 * len(b["items"])
+    return 0
+
+
+def _blocks_to_html(blocks: list[_Block]) -> str:
+    out: list[str] = []
+    for b in blocks:
+        if b["kind"] == "paragraph":
+            out.append(f"<p>{b['text']}</p>")
+        elif b["kind"] == "heading":
+            if b["level"] >= 3:
+                out.append(f"<h3>{b['text']}</h3>")
+            else:
+                out.append(f"<h2>{b['text']}</h2>")
+        elif b["kind"] == "list":
+            items_html = "".join(f"<li>{it}</li>" for it in b["items"] if it.strip())
+            if items_html:
+                out.append(f"<ul>{items_html}</ul>")
+    return "".join(out)
+
+
+def _pick_intro_text(chapter_blocks: list[_Block]) -> tuple[str, list[_Block]]:
+    """
+    Picks an intro paragraph (short lead text) and returns (intro_text, remaining_blocks).
+    """
+    blocks = list(chapter_blocks)
+    for idx, b in enumerate(blocks):
+        if b["kind"] == "paragraph" and _word_count(b["text"]) >= 10:
+            intro = b["text"].strip()
+            remaining = blocks[:idx] + blocks[idx + 1 :]
+            return intro, remaining
+    for idx, b in enumerate(blocks):
+        if b["kind"] == "paragraph":
+            intro = b["text"].strip()
+            remaining = blocks[:idx] + blocks[idx + 1 :]
+            return intro, remaining
+    # Fallback: no paragraph, maybe a list
+    for b in blocks:
+        if b["kind"] == "list" and b["items"]:
+            intro = b["items"][0].strip()
+            return intro, blocks
+    return "", blocks
+
+
+def _make_sidebar_items(intro_text: str, chapter_blocks: list[_Block]) -> list[dict]:
+    summary = (intro_text or "").strip()
+    if len(summary) > 320:
+        summary = summary[:317].rstrip() + "…"
+
+    items: list[dict] = []
+    items.append({"title": "Zusammenfassung", "text": summary})
+
+    # Optional key points from first list encountered
+    for b in chapter_blocks:
+        if b["kind"] == "list" and b["items"]:
+            pts = [it.strip() for it in b["items"] if it.strip()][:3]
+            if pts:
+                items.append({"title": "Kernpunkte", "text": "<br/>".join(pts)})
+            break
+
+    return items
+
+
+def _paginate(blocks: list[_Block], page_budget_words: int, *, merge_small_last: bool = True) -> list[list[_Block]]:
+    pages: list[list[_Block]] = []
+    current: list[_Block] = []
+    current_words = 0
+
+    for b in blocks:
+        w = _block_words(b)
+        if current and (current_words + w) > page_budget_words:
+            pages.append(current)
+            current = [b]
+            current_words = w
+        else:
+            current.append(b)
+            current_words += w
+
+    if current:
+        pages.append(current)
+
+    # Avoid a last page that is almost empty (common source of "rest lines")
+    if merge_small_last and len(pages) >= 2:
+        last_words = sum(_block_words(b) for b in pages[-1])
+        if last_words < 120:
+            pages[-2].extend(pages[-1])
+            pages.pop()
+
+    return pages
+
+
+def _extract_section_label(chapter_title: str) -> str:
+    m = re.match(r"^\s*(\d{1,2})\.\s+.+$", chapter_title)
+    if m:
+        return f"KAPITEL {m.group(1)}"
+    return ""
+
+
+def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[dict]:
 
     sections = []
+    intro_budget = int(os.getenv("PDF_TYPEC_INTRO_BUDGET_WORDS", "260"))
+    continue_budget = int(os.getenv("PDF_TYPEC_CONTINUE_BUDGET_WORDS", "420"))
+    page_start = int(os.getenv("PDF_PAGE_START", "1"))
+    page = page_start
 
-    first_chunk = paragraphs[:4]
-    remaining = paragraphs[4:]
+    for chapter in chapters:
+        chapter_title = (chapter.get("title") or "").strip() or (req.title.strip() or "Dokument")
+        blocks: list[_Block] = chapter.get("blocks") or []
+        intro_text, remaining_blocks = _pick_intro_text(blocks)
 
-    sections.append(
-        {
-            "layout": "type_c_intro",
-            "title": req.title,
-            "section_label": "",
-            "intro": first_chunk[0] if first_chunk else "",
-            "subheading": req.subtitle,
-            "body_left": _paragraphs_to_html(first_chunk[1:]),
-            "sidebar_items": [
-                {
-                    "title": "Zusammenfassung",
-                    "text": first_chunk[0] if first_chunk else ""
-                }
-            ],
-            "brand_name": "GPS Group Holding",
-            "context_right": req.subtitle,
-            "footer_left": "Kompetenz und Qualität auf höchstem Niveau",
-            "page_number": 1,
-        }
-    )
+        # Intro page body is a subset; remainder flows into continue pages
+        intro_pages = _paginate(remaining_blocks, intro_budget, merge_small_last=False) if remaining_blocks else []
+        intro_body_blocks = intro_pages[0] if intro_pages else []
+        rest_blocks = []
+        if intro_pages and len(intro_pages) > 1:
+            for pg in intro_pages[1:]:
+                rest_blocks.extend(pg)
 
-    index = 0
-    page = 2
-
-    while index < len(remaining):
-
-        chunk = remaining[index:index + 5]
+        sidebar_items = _make_sidebar_items(intro_text, blocks)
 
         sections.append(
             {
-                "layout": "type_c_continue",
+                "layout": "type_c_intro",
+                "intro_title": "OVERVIEW",
+                "intro_label": "A BRIEF STORY ABOUT THE PRODUCT",
+                "title": chapter_title,
+                "section_label": _extract_section_label(chapter_title),
+                "intro": intro_text,
                 "subheading": req.subtitle,
-                "body_left": _paragraphs_to_html(chunk),
-                "sidebar_items": [
-                    {
-                        "title": "Zusammenfassung",
-                        "text": chunk[0] if chunk else ""
-                    }
-                ],
-                "brand_name": "GPS Group Holding",
-                "context_right": req.subtitle,
-                "footer_left": "Kompetenz und Qualität auf höchstem Niveau",
-                "page_number": page,
+                "body_left": _blocks_to_html(intro_body_blocks),
+                "sidebar_items": sidebar_items,
+                "page_number": f"{page:03d}",
             }
         )
-
-        index += 5
         page += 1
 
-    return sections
-
-
-def _build_type_list_sections(req: DocumentRequest, paragraphs: list[str]) -> list[dict]:
-
-    sections = []
-    cleaned = [_strip_list_marker(p) for p in paragraphs]
-
-    index = 0
-
-    while index < len(cleaned):
-
-        remaining = len(cleaned) - index
-
-        if remaining >= 6:
-
-            chunk = cleaned[index:index + 6]
-
-            sections.append(
-                {
-                    "layout": "type_b",
-                    "title": req.title,
-                    "intro": req.subtitle,
-                    "factor_1": chunk[0],
-                    "factor_2": chunk[1],
-                    "factor_3": chunk[2],
-                    "factor_4": chunk[3],
-                    "factor_5": chunk[4],
-                    "factor_6": chunk[5],
-                }
-            )
-
-            index += 6
-
-        else:
-
-            chunk = cleaned[index:index + 4]
-
-            sections.append(
-                {
-                    "layout": "type_a",
-                    "title": req.title,
-                    "intro": req.subtitle,
-                    "item_1_title": "Punkt 1",
-                    "item_1_text": chunk[0] if len(chunk) > 0 else "",
-                    "item_2_title": "Punkt 2",
-                    "item_2_text": chunk[1] if len(chunk) > 1 else "",
-                    "item_3_title": "Punkt 3",
-                    "item_3_text": chunk[2] if len(chunk) > 2 else "",
-                    "item_4_title": "Punkt 4",
-                    "item_4_text": chunk[3] if len(chunk) > 3 else "",
-                }
-            )
-
-            index += 4
+        if rest_blocks:
+            cont_pages = _paginate(rest_blocks, continue_budget, merge_small_last=True)
+            for pg in cont_pages:
+                html = _blocks_to_html(pg)
+                if not html.strip():
+                    continue
+                sections.append(
+                    {
+                        "layout": "type_c_continue",
+                        "title": chapter_title,
+                        "subheading": req.subtitle,
+                        "body_left": html,
+                        "sidebar_items": [],
+                        "page_number": f"{page:03d}",
+                    }
+                )
+                page += 1
 
     return sections
 
@@ -233,10 +385,9 @@ def _build_sections(req: DocumentRequest) -> list[dict]:
     if not paragraphs:
         return []
 
-    if _looks_like_list(paragraphs):
-        return _build_type_list_sections(req, paragraphs)
-
-    return _build_type_c_sections(req, paragraphs)
+    blocks = _parse_blocks(paragraphs)
+    chapters = _split_into_chapters(req, blocks)
+    return _build_type_c_sections(req, chapters)
 
 
 def _render_pdf_bytes(req: DocumentRequest) -> bytes:
@@ -267,7 +418,9 @@ def _render_pdf_bytes(req: DocumentRequest) -> bytes:
         website="www.gpsgroup.ch",
     )
 
-    return HTML(string=rendered_html, base_url=str(TEMPLATES_DIR)).write_pdf()
+    # Use BASE_DIR so relative URLs like "assets/..." resolve to /app/assets in Docker.
+    # Templates/CSS are referenced explicitly via "templates/...".
+    return HTML(string=rendered_html, base_url=str(BASE_DIR)).write_pdf()
 
 
 @app.get("/health")
