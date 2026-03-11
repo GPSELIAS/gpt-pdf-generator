@@ -318,6 +318,26 @@ def _extract_section_label(chapter_title: str) -> str:
     return ""
 
 
+def _title_variant(title: str) -> str:
+    """
+    Type-C title scaling for long / very long German headings.
+    Returns a CSS class name used to pick a smaller font size.
+    """
+    t = re.sub(r"\s+", " ", (title or "").strip())
+    if not t:
+        return "tc-title--lg"
+    words = re.split(r"\s+", t)
+    longest = max((len(w) for w in words if w), default=0)
+    n = len(t)
+    if n >= 52 or longest >= 18:
+        return "tc-title--xs"
+    if n >= 40 or longest >= 16:
+        return "tc-title--sm"
+    if n >= 28 or longest >= 14:
+        return "tc-title--md"
+    return "tc-title--lg"
+
+
 def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[dict]:
 
     sections = []
@@ -328,6 +348,7 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
 
     for chapter in chapters:
         chapter_title = (chapter.get("title") or "").strip() or (req.title.strip() or "Dokument")
+        title_variant = _title_variant(chapter_title)
         blocks: list[_Block] = chapter.get("blocks") or []
         intro_text, remaining_blocks = _pick_intro_text(blocks)
 
@@ -347,6 +368,7 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
                 "intro_title": "OVERVIEW",
                 "intro_label": "A BRIEF STORY ABOUT THE PRODUCT",
                 "title": chapter_title,
+                "title_variant": title_variant,
                 "section_label": _extract_section_label(chapter_title),
                 "intro": intro_text,
                 "subheading": req.subtitle,
@@ -367,6 +389,7 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
                     {
                         "layout": "type_c_continue",
                         "title": chapter_title,
+                        "title_variant": title_variant,
                         "subheading": req.subtitle,
                         "body_left": html,
                         "sidebar_items": [],

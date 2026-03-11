@@ -21,8 +21,12 @@
     {{ section.intro }}
   </div>
 
-  <div class="tc-chapter-title">{{ section.title }}</div>
-  <div class="tc-chapter-subtitle">{{ section.subheading }}</div>
+  <div class="tc-chapter tc-chapter--intro">
+    <div class="tc-chapter__title {{ section.title_variant|default('tc-title--lg') }}">{{ section.title }}</div>
+    {% if section.subheading %}
+      <div class="tc-chapter__subtitle">{{ section.subheading }}</div>
+    {% endif %}
+  </div>
 
   <div class="tc-body-left tc-body-left--intro prose">
       {{ section.body_left | safe }}

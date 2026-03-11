@@ -503,40 +503,82 @@ body {
   z-index: 2;
 }
 
-.tc-chapter-title {
+.tc-chapter {
   position: absolute;
+  z-index: 2;
+  font-family: "Open Sans", Arial, Helvetica, sans-serif;
+  color: #0b1633;
+}
+
+.tc-chapter--intro {
   left: 33.37mm;
   top: 172.65mm;
-  font-family: "Open Sans", Arial, Helvetica, sans-serif;
-  font-size: 71.63pt;
+  width: 241.5mm; /* keep title within page frame */
+  max-height: 74mm;
+  overflow: hidden;
+}
+
+.tc-chapter--continue {
+  left: 29.7mm;
+  top: 55.12mm;
+  width: 245mm;
+  max-height: 78mm;
+  overflow: hidden;
+}
+
+.tc-chapter__title {
+  margin: 0;
+  font-size: 64pt;
   font-weight: 800;
   letter-spacing: 0.4pt;
   color: #ffca79;
   text-transform: uppercase;
-  z-index: 2;
+  line-height: 0.98;
+  /* Long German words must wrap; avoid clipping on the right. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
 }
 
-.tc-chapter-title--continue {
-  left: 29.7mm;
-  top: 55.12mm;
+.tc-chapter__title--continue {
+  font-size: 66pt;
 }
 
-.tc-chapter-subtitle {
-  position: absolute;
-  left: 36.14mm;
-  top: 225.72mm;
-  font-family: "Open Sans", Arial, Helvetica, sans-serif;
-  font-size: 17.5pt;
+.tc-title--lg {
+  font-size: 64pt;
+}
+
+.tc-title--md {
+  font-size: 56pt;
+  letter-spacing: 0.2pt;
+}
+
+.tc-title--sm {
+  font-size: 50pt;
+  letter-spacing: 0.15pt;
+}
+
+.tc-title--xs {
+  font-size: 44pt;
+  letter-spacing: 0.1pt;
+}
+
+.tc-chapter__subtitle {
+  margin: 6mm 0 0 0;
+  font-size: 12pt;
   font-weight: 800;
-  letter-spacing: 0.7pt;
+  letter-spacing: 1pt;
   color: #0b1633;
   text-transform: uppercase;
-  z-index: 2;
+  /* Ensure it never runs into the sidebar column on intro pages. */
+  max-width: 150mm;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
-.tc-chapter-subtitle--continue {
-  left: 33.38mm;
-  top: 104.14mm;
+.tc-chapter__subtitle--continue {
+  margin-top: 8mm;
+  max-width: 220mm;
 }
 
 .tc-body-left {

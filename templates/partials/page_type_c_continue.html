@@ -6,8 +6,12 @@
   <div class="tc-header-left tc-header-left--continue">GPS Group Holding</div>
   <div class="tc-header-right tc-header-right--continue">Nister GmbH 2026</div>
 
-  <div class="tc-chapter-title tc-chapter-title--continue">{{ section.title }}</div>
-  <div class="tc-chapter-subtitle tc-chapter-subtitle--continue">{{ section.subheading }}</div>
+  <div class="tc-chapter tc-chapter--continue">
+    <div class="tc-chapter__title tc-chapter__title--continue {{ section.title_variant|default('tc-title--lg') }}">{{ section.title }}</div>
+    {% if section.subheading %}
+      <div class="tc-chapter__subtitle tc-chapter__subtitle--continue">{{ section.subheading }}</div>
+    {% endif %}
+  </div>
 
   <div class="tc-body-left tc-body-left--continue prose">
     {{ section.body_left | safe }}
