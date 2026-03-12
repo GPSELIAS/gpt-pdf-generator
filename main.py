@@ -93,7 +93,44 @@ def _split_paragraphs(text: str) -> list[str]:
     text = _normalize_text(text)
     if not text:
         return []
-    return [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+
+    def expand_inline_list(p: str) -> list[str]:
+        """
+        Turn inline lists like:
+          'Zwecke: - A - B - C'
+        into separate paragraphs so we can render a real list and paginate correctly.
+        """
+        s = _compact_ws(p)
+        if not s:
+            return []
+        if not re.search(r":\s*[-•]\s+", s):
+            return [p.strip()]
+
+        prefix, rest = s.split(":", 1)
+        prefix = prefix.strip()
+        rest = rest.strip()
+        if len(prefix) < 4:
+            return [p.strip()]
+
+        # Remove leading marker and split on " - " / " • " occurrences.
+        rest = re.sub(r"^\s*[-•]\s+", "", rest)
+        items = [it.strip() for it in re.split(r"\s+[-•]\s+", rest) if it.strip()]
+
+        # Only treat as list if it looks like a real multi-item list.
+        if len(items) < 2:
+            return [p.strip()]
+
+        out = [f"{prefix}:"]
+        out.extend([f"- {it}" for it in items])
+        return out
+
+    expanded: list[str] = []
+    for p in paragraphs:
+        expanded.extend(expand_inline_list(p))
+
+    return expanded
 
 
 _LIST_ITEM_RE = re.compile(r"^(\d+[\.\)]|[-•])\s+")
@@ -136,8 +173,9 @@ def _classify_heading(paragraph: str) -> Optional[tuple[int, str]]:
     # Short, "heading-ish" lines (all-caps, or ends with colon)
     single_line = "\n" not in p and len(p) <= 70
     if single_line and p.endswith(":"):
-        # Treat as in-section subheading, not a new chapter.
-        return 3, p[:-1].strip()
+        # Keep as normal paragraph (common in German: "Ziele:" then list).
+        # It must NOT create a new chapter.
+        return None
 
     if single_line:
         letters = re.sub(r"[^A-Za-zÄÖÜäöüß]+", "", p)
