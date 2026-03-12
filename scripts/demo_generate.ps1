@@ -3,7 +3,8 @@ param(
   [int]$Port = 8080,
   [string]$ImageName = "gpt-pdf-generator:demo",
   [string]$OutPdf = "demo_output.pdf",
-  [string]$RequestPath = ""
+  [string]$RequestPath = "",
+  [switch]$AutoNumberChapters
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,6 +21,7 @@ Write-Step "Start container on http://localhost:$Port"
 $cid = docker run -d --rm `
   -e PORT=8080 `
   -e PDF_API_KEY=$ApiKey `
+  -e PDF_AUTO_NUMBER_CHAPTERS=$($AutoNumberChapters.IsPresent) `
   -p "$Port`:8080" `
   $ImageName
 

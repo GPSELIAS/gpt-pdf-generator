@@ -255,6 +255,7 @@ def _split_into_chapters(req: DocumentRequest, blocks: list[_Block]) -> list[dic
 
     current_title = req.title.strip() or "Dokument"
     current_blocks: list[_Block] = []
+    last_top_level_num = 0
 
     def flush():
         nonlocal current_title, current_blocks
@@ -264,6 +265,17 @@ def _split_into_chapters(req: DocumentRequest, blocks: list[_Block]) -> list[dic
 
     for b in blocks:
         if b["kind"] == "heading" and b["level"] == 1:
+            # Prevent sub-section numbering from creating new chapters.
+            # Real documents often restart numbering inside a chapter (e.g. Chapter 3 contains "1. Holding-Ebene").
+            # Top-level chapters usually increase monotonically (1,2,3,...).
+            m = re.match(r"^\s*(\d{1,2})\.\s+.+$", (b.get("text") or "").strip())
+            if m:
+                num = int(m.group(1))
+                if last_top_level_num and num < last_top_level_num:
+                    current_blocks.append({"kind": "heading", "text": b["text"], "level": 2, "items": []})
+                    continue
+                last_top_level_num = max(last_top_level_num, num)
+
             flush()
             current_title = b["text"].strip() or current_title
             continue
@@ -419,12 +431,47 @@ def _paginate_units(
     for b in blocks:
         if b["kind"] == "list":
             for lb in _split_list_block(b):
+                # Avoid leaving a list lead-in (ending with ":") at the bottom of a page.
+                if current and current[-1]["kind"] == "paragraph":
+                    t = (current[-1].get("text") or "").rstrip()
+                    if t.endswith(":"):
+                        lead = current.pop()
+                        current_units -= _estimate_units_for_block(lead, chars_per_line=chars_per_line)
+                        # Start a new page with the lead-in + list chunk
+                        if current:
+                            pages.append(current)
+                        current = [lead]
+                        current_units = _estimate_units_for_block(lead, chars_per_line=chars_per_line)
                 _append_block(lb)
             continue
         _append_block(b)
 
     if current:
         pages.append(current)
+
+    # Rebalance to avoid "almost empty" pages anywhere, not just at the end.
+    # We do NOT split paragraphs; we only pull whole blocks forward from the next page.
+    min_fill_units = int(os.getenv("PDF_TYPEC_MIN_FILL_UNITS", "7"))
+    if len(pages) >= 2 and min_fill_units > 0:
+        budget = max(8, int(max_units))
+        i = 0
+        while i < (len(pages) - 1):
+            cur_units = sum(_estimate_units_for_block(b, chars_per_line=chars_per_line) for b in pages[i])
+            if cur_units >= min_fill_units or not pages[i + 1]:
+                i += 1
+                continue
+
+            # Try to pull the first block of the next page into the current page.
+            nxt0 = pages[i + 1][0]
+            nxt0_units = _estimate_units_for_block(nxt0, chars_per_line=chars_per_line)
+            if (cur_units + nxt0_units) <= budget:
+                pages[i].append(pages[i + 1].pop(0))
+                # If the next page becomes empty, remove it.
+                if not pages[i + 1]:
+                    pages.pop(i + 1)
+                continue
+
+            i += 1
 
     # Avoid a last page that is almost empty (common source of "rest lines")
     if merge_small_last and len(pages) >= 2:
@@ -559,6 +606,10 @@ def _extract_section_label(chapter_title: str) -> str:
     return ""
 
 
+def _strip_leading_number(title: str) -> str:
+    return re.sub(r"^\s*\d{1,2}\s*[\.\)]\s+", "", (title or "").strip()).strip()
+
+
 def _title_variant(title: str) -> str:
     """
     Type-C title scaling for long / very long German headings.
@@ -611,11 +662,14 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
     # Approximate wrap density based on column width (intro is narrow, continue is wide)
     intro_chars_per_line = int(os.getenv("PDF_TYPEC_INTRO_CHARS_PER_LINE", "58"))
     continue_chars_per_line = int(os.getenv("PDF_TYPEC_CONTINUE_CHARS_PER_LINE", "110"))
+    auto_number_chapters = os.getenv("PDF_AUTO_NUMBER_CHAPTERS", "0").strip().lower() in {"1", "true", "yes", "on"}
     page_start = int(os.getenv("PDF_PAGE_START", "1"))
     page = page_start
 
-    for chapter in chapters:
-        chapter_title = (chapter.get("title") or "").strip() or (req.title.strip() or "Dokument")
+    for chapter_no, chapter in enumerate(chapters, start=1):
+        raw_title = (chapter.get("title") or "").strip() or (req.title.strip() or "Dokument")
+        base_title = _strip_leading_number(raw_title) or raw_title
+        chapter_title = f"{chapter_no}. {base_title}" if auto_number_chapters else raw_title
         title_variant = _title_variant(chapter_title)
         blocks: list[_Block] = chapter.get("blocks") or []
         chapter_subheading = (chapter.get("subheading") or "").strip()
@@ -640,11 +694,11 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
                 rest_blocks.extend(pg)
 
         sidebar_items = _make_sidebar_items(intro_text, blocks)
-        section_label = _extract_section_label(chapter_title)
+        section_label = f"KAPITEL {chapter_no}" if auto_number_chapters else _extract_section_label(chapter_title)
         # Dynamic overview title + label (previously hardcoded -> always identical).
         overview_title = section_label or "OVERVIEW"
         # Use chapter title without leading numbering as the overview label (icon row).
-        overview_label = re.sub(r"^\s*\d{1,2}\s*[\.\)]\s*", "", chapter_title).strip() or chapter_title
+        overview_label = base_title or chapter_title
 
         sections.append(
             {
