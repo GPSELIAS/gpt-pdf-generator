@@ -13,6 +13,7 @@ import hmac
 import hashlib
 import uuid
 import re
+import math
 
 app = FastAPI(title="PDF Generator", version="6.0.1")
 
@@ -147,6 +148,29 @@ def _classify_heading(paragraph: str) -> Optional[tuple[int, str]]:
     return None
 
 
+def _extract_list_items(text: str) -> list[str]:
+    """
+    Extract list items from a paragraph that may contain multiple lines.
+    Supports bullets like "- item" or "1. item". Non-matching lines are
+    treated as continuations of the previous item (common in wrapped text).
+    """
+    items: list[str] = []
+    for ln in (text or "").splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        if _classify_heading(ln):
+            break
+        if _LIST_ITEM_RE.match(ln):
+            items.append(_LIST_ITEM_RE.sub("", ln).strip())
+        else:
+            if items:
+                items[-1] = f"{items[-1]} {ln}".strip()
+            else:
+                items.append(ln)
+    return [it for it in (it.strip() for it in items) if it]
+
+
 def _parse_blocks(paragraphs: list[str]) -> list[_Block]:
     blocks: list[_Block] = []
     i = 0
@@ -175,7 +199,7 @@ def _parse_blocks(paragraphs: list[str]) -> list[_Block]:
                     break
                 if not _LIST_ITEM_RE.match(cand):
                     break
-                items.append(_LIST_ITEM_RE.sub("", cand).strip())
+                items.extend(_extract_list_items(cand))
                 i += 1
             blocks.append({"kind": "list", "items": items, "text": "", "level": 0})
             continue
@@ -210,6 +234,22 @@ def _split_into_chapters(req: DocumentRequest, blocks: list[_Block]) -> list[dic
     if not chapters and blocks:
         chapters = [{"title": current_title, "blocks": blocks}]
 
+    # Extract a per-chapter subheading (first level-2 heading), so the subtitle under
+    # the orange title is not the same on every page.
+    for ch in chapters:
+        ch_blocks: list[_Block] = ch.get("blocks") or []
+        subheading = ""
+        new_blocks: list[_Block] = []
+        extracted = False
+        for b in ch_blocks:
+            if not extracted and b["kind"] == "heading" and b["level"] == 2:
+                subheading = (b["text"] or "").strip()
+                extracted = True
+                continue
+            new_blocks.append(b)
+        ch["subheading"] = subheading
+        ch["blocks"] = new_blocks
+
     return chapters
 
 
@@ -222,6 +262,129 @@ def _block_words(b: _Block) -> int:
         # list items tend to consume more vertical space than plain text
         return sum(_word_count(it) for it in b["items"]) + 10 * len(b["items"])
     return 0
+
+
+def _compact_ws(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "").strip())
+
+
+def _longest_word_len(text: str) -> int:
+    words = re.findall(r"[^\s]+", (text or ""), flags=re.UNICODE)
+    return max((len(w) for w in words), default=0)
+
+
+def _estimate_units_for_block(b: _Block, *, chars_per_line: int) -> int:
+    """
+    Layout-aware block cost estimation (rough 'line units').
+    This is intentionally conservative to avoid text overflow in fixed-position boxes.
+    """
+    cpl = max(30, int(chars_per_line))
+
+    if b["kind"] == "paragraph":
+        t = _compact_ws(b["text"])
+        if not t:
+            return 0
+        lines = int(math.ceil(len(t) / cpl))
+        wrap_penalty = 1 if _longest_word_len(t) >= 18 else 0
+        # +1 accounts for paragraph spacing (margin-bottom)
+        return lines + 1 + wrap_penalty
+
+    if b["kind"] == "heading":
+        t = _compact_ws(b["text"])
+        if not t:
+            return 1
+        # headings consume extra vertical spacing
+        lines = int(math.ceil(len(t) / max(20, int(cpl * 0.85))))
+        return lines + 2
+
+    if b["kind"] == "list":
+        units = 1  # list block spacing
+        for it in b["items"]:
+            t = _compact_ws(it)
+            if not t:
+                continue
+            lines = int(math.ceil(len(t) / max(22, int(cpl * 0.9))))
+            # +1 per item spacing
+            units += lines + 1
+        return units
+
+    return 0
+
+
+def _paginate_units(
+    blocks: list[_Block],
+    *,
+    max_units: int,
+    chars_per_line: int,
+    merge_small_last: bool = True,
+) -> list[list[_Block]]:
+    pages: list[list[_Block]] = []
+    current: list[_Block] = []
+    current_units = 0
+
+    budget = max(8, int(max_units))
+
+    def _append_block(block: _Block):
+        nonlocal current, current_units
+        u = _estimate_units_for_block(block, chars_per_line=chars_per_line)
+        if current and (current_units + u) > budget:
+            pages.append(current)
+            current = []
+            current_units = 0
+        current.append(block)
+        current_units += u
+
+    def _split_list_block(b: _Block) -> list[_Block]:
+        if b["kind"] != "list" or len(b.get("items") or []) <= 1:
+            return [b]
+
+        cpl = max(30, int(chars_per_line))
+        item_cpl = max(22, int(cpl * 0.9))
+
+        chunks: list[_Block] = []
+        cur_items: list[str] = []
+        cur_units = 1  # base list spacing
+
+        def item_units(txt: str) -> int:
+            t = _compact_ws(txt)
+            if not t:
+                return 0
+            lines = int(math.ceil(len(t) / item_cpl))
+            return lines + 1  # per-item spacing
+
+        for it in b["items"]:
+            iu = item_units(it)
+            # If adding this item would exceed the full-page budget, flush current chunk.
+            if cur_items and (cur_units + iu) > max(4, budget):
+                chunks.append({"kind": "list", "items": cur_items, "text": "", "level": 0})
+                cur_items = []
+                cur_units = 1
+            cur_items.append(it)
+            cur_units += iu
+
+        if cur_items:
+            chunks.append({"kind": "list", "items": cur_items, "text": "", "level": 0})
+
+        return chunks or [b]
+
+    for b in blocks:
+        if b["kind"] == "list":
+            for lb in _split_list_block(b):
+                _append_block(lb)
+            continue
+        _append_block(b)
+
+    if current:
+        pages.append(current)
+
+    # Avoid a last page that is almost empty (common source of "rest lines")
+    if merge_small_last and len(pages) >= 2:
+        last_units = sum(_estimate_units_for_block(b, chars_per_line=chars_per_line) for b in pages[-1])
+        if last_units < max(6, int(budget * 0.18)):
+            pages[-2].extend(pages[-1])
+            pages.pop()
+
+    return pages
 
 
 def _blocks_to_html(blocks: list[_Block]) -> str:
@@ -265,9 +428,14 @@ def _pick_intro_text(chapter_blocks: list[_Block]) -> tuple[str, list[_Block]]:
 
 
 def _make_sidebar_items(intro_text: str, chapter_blocks: list[_Block]) -> list[dict]:
+    # The sidebar has a fixed height. We therefore keep the content compact and
+    # aggressively truncate when needed to prevent overflow.
+    sidebar_char_budget = int(os.getenv("PDF_TYPEC_SIDEBAR_CHAR_BUDGET", "620"))
+    summary_max = int(os.getenv("PDF_TYPEC_SIDEBAR_SUMMARY_MAX", "260"))
+
     summary = (intro_text or "").strip()
-    if len(summary) > 320:
-        summary = summary[:317].rstrip() + "…"
+    if len(summary) > summary_max:
+        summary = summary[: max(0, summary_max - 1)].rstrip() + "…"
 
     items: list[dict] = []
     items.append({"title": "Zusammenfassung", "text": summary})
@@ -275,10 +443,34 @@ def _make_sidebar_items(intro_text: str, chapter_blocks: list[_Block]) -> list[d
     # Optional key points from first list encountered
     for b in chapter_blocks:
         if b["kind"] == "list" and b["items"]:
-            pts = [it.strip() for it in b["items"] if it.strip()][:3]
+            max_pts = int(os.getenv("PDF_TYPEC_SIDEBAR_KEYPOINTS_MAX", "3"))
+            pt_max_len = int(os.getenv("PDF_TYPEC_SIDEBAR_KEYPOINT_MAXLEN", "110"))
+            pts = []
+            for it in (it.strip() for it in b["items"] if it.strip()):
+                t = it
+                if len(t) > pt_max_len:
+                    t = t[: max(0, pt_max_len - 1)].rstrip() + "…"
+                pts.append(t)
+                if len(pts) >= max_pts:
+                    break
+
             if pts:
                 items.append({"title": "Kernpunkte", "text": "<br/>".join(pts)})
             break
+
+    # Final safety pass: shrink/remove keypoints if the sidebar would get too long.
+    approx_len = sum(len((it.get("title") or "")) + len((it.get("text") or "")) for it in items)
+    if approx_len > sidebar_char_budget and len(items) >= 2:
+        # Drop keypoints first (most likely to overflow).
+        items = items[:1]
+        approx_len = sum(len((it.get("title") or "")) + len((it.get("text") or "")) for it in items)
+
+    if approx_len > sidebar_char_budget:
+        # Further truncate summary.
+        t = items[0]["text"]
+        hard_max = max(80, sidebar_char_budget - 40)
+        if len(t) > hard_max:
+            items[0]["text"] = t[: hard_max - 1].rstrip() + "…"
 
     return items
 
@@ -341,8 +533,16 @@ def _title_variant(title: str) -> str:
 def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[dict]:
 
     sections = []
-    intro_budget = int(os.getenv("PDF_TYPEC_INTRO_BUDGET_WORDS", "260"))
-    continue_budget = int(os.getenv("PDF_TYPEC_CONTINUE_BUDGET_WORDS", "420"))
+    # Backwards compatible: if only *_BUDGET_WORDS is set, derive a conservative unit budget.
+    intro_words_budget = int(os.getenv("PDF_TYPEC_INTRO_BUDGET_WORDS", "260"))
+    continue_words_budget = int(os.getenv("PDF_TYPEC_CONTINUE_BUDGET_WORDS", "420"))
+    intro_units_default = max(20, intro_words_budget // 9)
+    continue_units_default = max(28, continue_words_budget // 9)
+    intro_units_budget = int(os.getenv("PDF_TYPEC_INTRO_BUDGET_UNITS", str(intro_units_default)))
+    continue_units_budget = int(os.getenv("PDF_TYPEC_CONTINUE_BUDGET_UNITS", str(continue_units_default)))
+    # Approximate wrap density based on column width (intro is narrow, continue is wide)
+    intro_chars_per_line = int(os.getenv("PDF_TYPEC_INTRO_CHARS_PER_LINE", "58"))
+    continue_chars_per_line = int(os.getenv("PDF_TYPEC_CONTINUE_CHARS_PER_LINE", "110"))
     page_start = int(os.getenv("PDF_PAGE_START", "1"))
     page = page_start
 
@@ -350,10 +550,20 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
         chapter_title = (chapter.get("title") or "").strip() or (req.title.strip() or "Dokument")
         title_variant = _title_variant(chapter_title)
         blocks: list[_Block] = chapter.get("blocks") or []
+        chapter_subheading = (chapter.get("subheading") or "").strip()
         intro_text, remaining_blocks = _pick_intro_text(blocks)
 
         # Intro page body is a subset; remainder flows into continue pages
-        intro_pages = _paginate(remaining_blocks, intro_budget, merge_small_last=False) if remaining_blocks else []
+        intro_pages = (
+            _paginate_units(
+                remaining_blocks,
+                max_units=intro_units_budget,
+                chars_per_line=intro_chars_per_line,
+                merge_small_last=False,
+            )
+            if remaining_blocks
+            else []
+        )
         intro_body_blocks = intro_pages[0] if intro_pages else []
         rest_blocks = []
         if intro_pages and len(intro_pages) > 1:
@@ -361,17 +571,22 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
                 rest_blocks.extend(pg)
 
         sidebar_items = _make_sidebar_items(intro_text, blocks)
+        section_label = _extract_section_label(chapter_title)
+        # Dynamic overview title + label (previously hardcoded -> always identical).
+        overview_title = section_label or "OVERVIEW"
+        # Use chapter title without leading numbering as the overview label (icon row).
+        overview_label = re.sub(r"^\s*\d{1,2}\s*[\.\)]\s*", "", chapter_title).strip() or chapter_title
 
         sections.append(
             {
                 "layout": "type_c_intro",
-                "intro_title": "OVERVIEW",
-                "intro_label": "A BRIEF STORY ABOUT THE PRODUCT",
+                "intro_title": overview_title,
+                "intro_label": overview_label,
                 "title": chapter_title,
                 "title_variant": title_variant,
-                "section_label": _extract_section_label(chapter_title),
+                "section_label": section_label,
                 "intro": intro_text,
-                "subheading": req.subtitle,
+                "subheading": chapter_subheading or req.subtitle,
                 "body_left": _blocks_to_html(intro_body_blocks),
                 "sidebar_items": sidebar_items,
                 "page_number": f"{page:03d}",
@@ -380,7 +595,12 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
         page += 1
 
         if rest_blocks:
-            cont_pages = _paginate(rest_blocks, continue_budget, merge_small_last=True)
+            cont_pages = _paginate_units(
+                rest_blocks,
+                max_units=continue_units_budget,
+                chars_per_line=continue_chars_per_line,
+                merge_small_last=True,
+            )
             for pg in cont_pages:
                 html = _blocks_to_html(pg)
                 if not html.strip():
@@ -390,7 +610,7 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
                         "layout": "type_c_continue",
                         "title": chapter_title,
                         "title_variant": title_variant,
-                        "subheading": req.subtitle,
+                        "subheading": chapter_subheading or req.subtitle,
                         "body_left": html,
                         "sidebar_items": [],
                         "page_number": f"{page:03d}",

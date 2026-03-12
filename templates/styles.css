@@ -448,7 +448,7 @@ body {
   left: 33.37mm;
   top: 55.14mm;
   font-family: "Open Sans", Arial, Helvetica, sans-serif;
-  font-size: 76.19pt;
+  font-size: 66pt;
   font-weight: 800;
   letter-spacing: 0.4pt;
   color: #0b1633;
@@ -514,7 +514,11 @@ body {
   left: 33.37mm;
   top: 172.65mm;
   width: 241.5mm; /* keep title within page frame */
-  max-height: 74mm;
+  /*
+    Keep the title/subtitle above the sidebar (starts at ~230mm).
+    Otherwise the subtitle can end up behind the blue sidebar box.
+  */
+  max-height: 52mm;
   overflow: hidden;
 }
 
@@ -533,7 +537,7 @@ body {
   letter-spacing: 0.4pt;
   color: #ffca79;
   text-transform: uppercase;
-  line-height: 0.98;
+  line-height: 1.02;
   /* Long German words must wrap; avoid clipping on the right. */
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -541,25 +545,25 @@ body {
 }
 
 .tc-chapter__title--continue {
-  font-size: 66pt;
+  font-size: 60pt;
 }
 
 .tc-title--lg {
-  font-size: 64pt;
+  font-size: 56pt;
 }
 
 .tc-title--md {
-  font-size: 56pt;
+  font-size: 50pt;
   letter-spacing: 0.2pt;
 }
 
 .tc-title--sm {
-  font-size: 50pt;
+  font-size: 44pt;
   letter-spacing: 0.15pt;
 }
 
 .tc-title--xs {
-  font-size: 44pt;
+  font-size: 38pt;
   letter-spacing: 0.1pt;
 }
 
@@ -591,12 +595,18 @@ body {
   left: 36.14mm;
   top: 248.65mm;
   width: 128.65mm;
+  max-height: 128mm;
+  padding-bottom: 8mm;
+  overflow: hidden;
 }
 
 .tc-body-left--continue {
   left: 33.38mm;
   top: 142.9mm;
   width: 241.52mm;
+  max-height: 236mm;
+  padding-bottom: 8mm;
+  overflow: hidden;
 }
 
 .tc-sidebar {
@@ -616,13 +626,16 @@ body {
   padding: 14mm 10mm;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .prose {
   font-family: "Open Sans", Arial, Helvetica, sans-serif;
-  font-size: 12.3pt;
-  line-height: 1.45;
+  font-size: 11.8pt;
+  line-height: 1.52;
   color: #0b1633;
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 .prose > :first-child {
@@ -630,17 +643,18 @@ body {
 }
 
 .prose p {
-  margin: 0 0 10pt 0;
+  margin: 0 0 12pt 0;
 }
 
 .prose ul,
 .prose ol {
-  margin: 0 0 10pt 0;
-  padding-left: 18pt;
+  margin: 0 0 12pt 0;
+  padding-left: 16pt;
+  list-style-position: outside;
 }
 
 .prose li {
-  margin: 0 0 6pt 0;
+  margin: 0 0 7pt 0;
 }
 
 .prose h2 {
