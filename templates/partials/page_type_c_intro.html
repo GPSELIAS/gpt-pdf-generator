@@ -24,7 +24,7 @@
   <div class="tc-chapter tc-chapter--intro">
     <div class="tc-chapter__title {{ section.title_variant|default('tc-title--lg') }}">{{ section.title }}</div>
     {% if section.subheading %}
-      <div class="tc-chapter__subtitle">{{ section.subheading }}</div>
+      <div class="tc-chapter__subtitle {{ section.subtitle_variant|default('') }}">{{ section.subheading }}</div>
     {% endif %}
   </div>
 

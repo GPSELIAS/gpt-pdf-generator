@@ -518,7 +518,7 @@ body {
     Keep the title/subtitle above the sidebar (starts at ~230mm).
     Otherwise the subtitle can end up behind the blue sidebar box.
   */
-  max-height: 52mm;
+  max-height: 60mm;
   overflow: hidden;
 }
 
@@ -526,7 +526,7 @@ body {
   left: 29.7mm;
   top: 55.12mm;
   width: 245mm;
-  max-height: 78mm;
+  max-height: 84mm;
   overflow: hidden;
 }
 
@@ -568,8 +568,9 @@ body {
 }
 
 .tc-chapter__subtitle {
-  margin: 6mm 0 0 0;
-  font-size: 12pt;
+  margin: 4mm 0 0 0;
+  font-size: 11pt;
+  line-height: 1.25;
   font-weight: 800;
   letter-spacing: 1pt;
   color: #0b1633;
@@ -580,8 +581,23 @@ body {
   hyphens: auto;
 }
 
+.tc-subtitle--md {
+  font-size: 10.5pt;
+  letter-spacing: 0.8pt;
+}
+
+.tc-subtitle--sm {
+  font-size: 10pt;
+  letter-spacing: 0.7pt;
+}
+
+.tc-subtitle--xs {
+  font-size: 9.5pt;
+  letter-spacing: 0.6pt;
+}
+
 .tc-chapter__subtitle--continue {
-  margin-top: 8mm;
+  margin-top: 6mm;
   max-width: 220mm;
 }
 
@@ -593,7 +609,7 @@ body {
 
 .tc-body-left--intro {
   left: 36.14mm;
-  top: 248.65mm;
+  top: 254.65mm;
   width: 128.65mm;
   max-height: 128mm;
   padding-bottom: 8mm;
@@ -616,7 +632,7 @@ body {
 
 .tc-sidebar--intro {
   left: 189.52mm;
-  top: 230.04mm;
+  top: 236mm;
   width: 77.7mm;
   height: 155.71mm;
 }

@@ -1,0 +1,7 @@
+{
+  "title": "Repro – Heading/Pagination Fix",
+  "subtitle": "Fallback Subtitle (should only be used if no H2 exists)",
+  "template": "document",
+  "content": "# 1. Einleitung und Zielsetzung\n\nKurzer Leadtext fuer den Intro-Block.\n\n## Vision, Organisationsstruktur, Governance und langfristige Entwicklungsstrategie der Unternehmensgruppe (sehr lang, muss komplett lesbar sein)\n\nDieser Absatz bleibt im Kapitel 1.\n\nDieses Strategiepapier verfolgt dabei mehrere zentrale Zwecke:\n\n- Definition der langfristigen Vision der Gruppe\n- Festlegung der organisatorischen Struktur\n- Klaerung von Rollen, Verantwortlichkeiten und Governance\n- Entwicklung strategischer Leitlinien fuer Wachstum und Innovation\n\nWICHTIGE FOKUSBEREICHE SIND\n\nDigitale Plattformen, Automatisierung, Nutzung moderner Softwareloesungen und datenbasierte Entscheidungsmodelle.\n\nNoch ein Absatz, damit Continue-Seiten entstehen.\n\nAbsatz A: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.\n\nAbsatz B: Proin porttitor, orci nec nonummy molestie, enim est eleifend mi, non fermentum diam nisl sit amet erat.\n\n# 2. Fazit\n\nKapitel 2 Leadtext.\n\n## Zusammenfassung und Ausblick\n\nEin kurzer Schlussabsatz.\n"
+}
+

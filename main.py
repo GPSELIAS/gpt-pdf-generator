@@ -136,14 +136,16 @@ def _classify_heading(paragraph: str) -> Optional[tuple[int, str]]:
     # Short, "heading-ish" lines (all-caps, or ends with colon)
     single_line = "\n" not in p and len(p) <= 70
     if single_line and p.endswith(":"):
-        return 1, p[:-1].strip()
+        # Treat as in-section subheading, not a new chapter.
+        return 3, p[:-1].strip()
 
     if single_line:
         letters = re.sub(r"[^A-Za-zÄÖÜäöüß]+", "", p)
         if letters and len(letters) >= 6:
             upper_ratio = sum(1 for c in letters if c.isupper()) / max(1, len(letters))
             if upper_ratio >= 0.9 and not p.endswith("."):
-                return 1, p.strip()
+                # Treat as in-section subheading, not a new chapter.
+                return 3, p.strip()
 
     return None
 
@@ -234,19 +236,28 @@ def _split_into_chapters(req: DocumentRequest, blocks: list[_Block]) -> list[dic
     if not chapters and blocks:
         chapters = [{"title": current_title, "blocks": blocks}]
 
-    # Extract a per-chapter subheading (first level-2 heading), so the subtitle under
-    # the orange title is not the same on every page.
+    # Extract a per-chapter subheading (first level-2 heading near the start), so the
+    # subtitle under the orange title is not the same on every page. We intentionally
+    # ignore later in-section headings to avoid accidentally turning body headings into
+    # chapter subtitles.
     for ch in chapters:
         ch_blocks: list[_Block] = ch.get("blocks") or []
         subheading = ""
         new_blocks: list[_Block] = []
         extracted = False
+        idx = 0
         for b in ch_blocks:
             if not extracted and b["kind"] == "heading" and b["level"] == 2:
-                subheading = (b["text"] or "").strip()
-                extracted = True
-                continue
+                # Only take early H2 as chapter subtitle.
+                if idx <= 5:
+                    cand = (b["text"] or "").strip()
+                    if 0 < len(cand) <= 220:
+                        subheading = cand
+                        extracted = True
+                        idx += 1
+                        continue
             new_blocks.append(b)
+            idx += 1
         ch["subheading"] = subheading
         ch["blocks"] = new_blocks
 
@@ -530,6 +541,25 @@ def _title_variant(title: str) -> str:
     return "tc-title--lg"
 
 
+def _subtitle_variant(subtitle: str) -> str:
+    """
+    Type-C subtitle scaling to avoid clipping for long H2 subtitles.
+    Returns a CSS class name (or empty string).
+    """
+    t = re.sub(r"\s+", " ", (subtitle or "").strip())
+    if not t:
+        return ""
+    n = len(t)
+    longest = _longest_word_len(t)
+    if n >= 110 or longest >= 24:
+        return "tc-subtitle--xs"
+    if n >= 90 or longest >= 20:
+        return "tc-subtitle--sm"
+    if n >= 72 or longest >= 18:
+        return "tc-subtitle--md"
+    return ""
+
+
 def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[dict]:
 
     sections = []
@@ -551,6 +581,7 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
         title_variant = _title_variant(chapter_title)
         blocks: list[_Block] = chapter.get("blocks") or []
         chapter_subheading = (chapter.get("subheading") or "").strip()
+        subtitle_variant = _subtitle_variant(chapter_subheading or req.subtitle)
         intro_text, remaining_blocks = _pick_intro_text(blocks)
 
         # Intro page body is a subset; remainder flows into continue pages
@@ -587,6 +618,7 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
                 "section_label": section_label,
                 "intro": intro_text,
                 "subheading": chapter_subheading or req.subtitle,
+                "subtitle_variant": subtitle_variant,
                 "body_left": _blocks_to_html(intro_body_blocks),
                 "sidebar_items": sidebar_items,
                 "page_number": f"{page:03d}",
@@ -611,6 +643,7 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
                         "title": chapter_title,
                         "title_variant": title_variant,
                         "subheading": chapter_subheading or req.subtitle,
+                        "subtitle_variant": subtitle_variant,
                         "body_left": html,
                         "sidebar_items": [],
                         "page_number": f"{page:03d}",

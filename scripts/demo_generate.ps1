@@ -117,6 +117,9 @@ Mission: Die Mission der GPS Group besteht darin, nachhaltige Geschäftsmodelle 
   Write-Host "PDF URL: $($gen.url)"
 
   Write-Step "Download PDF to $OutPdf"
+  if (Test-Path -LiteralPath $OutPdf) {
+    try { Remove-Item -LiteralPath $OutPdf -Force -ErrorAction Stop } catch {}
+  }
   Invoke-WebRequest -Uri $gen.url -OutFile $OutPdf
 
   Write-Step "Done"
