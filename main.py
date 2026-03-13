@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from weasyprint import HTML
 from datetime import datetime, timezone
@@ -25,11 +25,50 @@ env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
 DOCUMENT_STORE = {}
 
 
+class RapportDiscussedTopicRow(BaseModel):
+    thema: str = ""
+    beschreibung: str = ""
+    ergebnis: str = ""
+
+
+class RapportOpenTaskRow(BaseModel):
+    aufgabe: str = ""
+    verantwortlich: str = ""
+    status: str = ""
+    bewertung: str = ""
+
+
+class RapportNewTaskRow(BaseModel):
+    neue_aufgabe: str = ""
+    verantwortlich: str = ""
+    prioritaet: str = ""
+    faellig_bis: str = ""
+
+
+class RapportDecisionRow(BaseModel):
+    entscheidung: str = ""
+    hintergrund: str = ""
+    verantwortlich: str = ""
+
+
+class RapportData(BaseModel):
+    datum: str = ""
+    meeting_titel: str = ""
+    moderator: str = ""
+    teilnehmer: list[str] = Field(default_factory=list)
+    besprochene_themen: list[RapportDiscussedTopicRow] = Field(default_factory=list)
+    aufgabenbeurteilung: list[RapportOpenTaskRow] = Field(default_factory=list)
+    neue_aufgaben: list[RapportNewTaskRow] = Field(default_factory=list)
+    wichtige_entscheidungen: list[RapportDecisionRow] = Field(default_factory=list)
+    fazit: str = ""
+
+
 class DocumentRequest(BaseModel):
     title: str
-    subtitle: str
-    content: str
+    subtitle: str = ""
+    content: str = ""
     template: Literal["document", "rapport"] = "document"
+    rapport: Optional[RapportData] = None
 
 
 class PdfLinkResponse(BaseModel):
@@ -747,6 +786,8 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
 
 
 def _build_sections(req: DocumentRequest) -> list[dict]:
+    if req.template == "rapport":
+        return _build_rapport_sections(req)
 
     paragraphs = _split_paragraphs(req.content)
 
@@ -756,6 +797,178 @@ def _build_sections(req: DocumentRequest) -> list[dict]:
     blocks = _parse_blocks(paragraphs)
     chapters = _split_into_chapters(req, blocks)
     return _build_type_c_sections(req, chapters)
+
+
+def _build_rapport_sections(req: DocumentRequest) -> list[dict]:
+    r = req.rapport or RapportData()
+    page_start = int(os.getenv("PDF_PAGE_START", "1"))
+    page = page_start
+
+    def _to_dict(model: BaseModel) -> dict:
+        # Support both Pydantic v1 and v2
+        if hasattr(model, "model_dump"):
+            return model.model_dump()  # type: ignore[attr-defined]
+        return model.dict()  # type: ignore[no-any-return]
+
+    def _placeholders_discussed() -> list[dict]:
+        return [
+            {"thema": "—", "beschreibung": "—", "ergebnis": "—"},
+            {"thema": "—", "beschreibung": "—", "ergebnis": "—"},
+            {"thema": "—", "beschreibung": "—", "ergebnis": "—"},
+            {"thema": "—", "beschreibung": "—", "ergebnis": "—"},
+        ]
+
+    def _placeholders_open_tasks() -> list[dict]:
+        return [
+            {"aufgabe": "—", "verantwortlich": "—", "status": "—", "bewertung": "—"},
+            {"aufgabe": "—", "verantwortlich": "—", "status": "—", "bewertung": "—"},
+            {"aufgabe": "—", "verantwortlich": "—", "status": "—", "bewertung": "—"},
+            {"aufgabe": "—", "verantwortlich": "—", "status": "—", "bewertung": "—"},
+        ]
+
+    def _placeholders_new_tasks() -> list[dict]:
+        return [
+            {"neue_aufgabe": "—", "verantwortlich": "—", "prioritaet": "—", "faellig_bis": "—"},
+            {"neue_aufgabe": "—", "verantwortlich": "—", "prioritaet": "—", "faellig_bis": "—"},
+            {"neue_aufgabe": "—", "verantwortlich": "—", "prioritaet": "—", "faellig_bis": "—"},
+            {"neue_aufgabe": "—", "verantwortlich": "—", "prioritaet": "—", "faellig_bis": "—"},
+        ]
+
+    def _placeholders_decisions() -> list[dict]:
+        return [
+            {"entscheidung": "—", "hintergrund": "—", "verantwortlich": "—"},
+            {"entscheidung": "—", "hintergrund": "—", "verantwortlich": "—"},
+            {"entscheidung": "—", "hintergrund": "—", "verantwortlich": "—"},
+        ]
+
+    meeting_title = (r.meeting_titel or req.title).strip() or "Meeting"
+    datum = (r.datum or "").strip() or "TT.MM.JJJJ"
+    moderator = (r.moderator or "").strip() or "Name"
+    teilnehmer = r.teilnehmer or ["Teilnehmerliste"]
+    fazit = (r.fazit or "").strip() or "Hier eine kurze Zusammenfassung der wichtigsten Punkte des Meetings eintragen."
+
+    # Type-C budgeting heuristics for responsive pagination
+    continue_words_budget = int(os.getenv("PDF_TYPEC_CONTINUE_BUDGET_WORDS", "420"))
+    continue_units_default = max(28, continue_words_budget // 9)
+    continue_units_budget = int(os.getenv("PDF_TYPEC_CONTINUE_BUDGET_UNITS", str(int(continue_units_default))))
+    continue_chars_per_line = int(os.getenv("PDF_TYPEC_CONTINUE_CHARS_PER_LINE", "110"))
+
+    def _split_text_chunks(text: str, *, max_chars: int) -> list[str]:
+        t = _compact_ws(text)
+        if not t:
+            return []
+        if len(t) <= max_chars:
+            return [t]
+        chunks: list[str] = []
+        s = t
+        while s:
+            if len(s) <= max_chars:
+                chunks.append(s.strip())
+                break
+            cut = max_chars
+            window = s[: max_chars + 1]
+            m = re.search(r"[\.\!\?]\s+(?=[A-ZÄÖÜ0-9])", window[::-1])
+            if m:
+                # m.start() is from reversed string
+                idx_from_end = m.start()
+                cut = max(140, max_chars - idx_from_end - 1)
+            else:
+                # fall back to whitespace
+                ws = window.rfind(" ")
+                if ws >= 140:
+                    cut = ws
+            chunk = s[:cut].strip()
+            if chunk:
+                chunks.append(chunk)
+            s = s[cut:].strip()
+        return [c for c in chunks if c]
+
+    def _fazit_blocks(text: str) -> list[_Block]:
+        # Ensure we can paginate even if user provides one huge paragraph.
+        raw_paragraphs = _split_paragraphs(text)
+        paragraphs: list[str] = []
+        for p in raw_paragraphs:
+            if len(_compact_ws(p)) > 520:
+                paragraphs.extend(_split_text_chunks(p, max_chars=420))
+            else:
+                paragraphs.append(p)
+        return _parse_blocks(paragraphs)
+
+    fazit_blocks = _fazit_blocks(fazit) if fazit else []
+    inline_max_units = int(os.getenv("PDF_RAPPORT_FAZIT_INLINE_MAX_UNITS", "14"))
+    inline_units = sum(_estimate_units_for_block(b, chars_per_line=continue_chars_per_line) for b in fazit_blocks)
+    fazit_inline_ok = inline_units <= max(4, inline_max_units)
+
+    sec_common = {
+        "title": "RAPPORT",
+        "title_variant": "tc-title--md",
+        "subheading": meeting_title,
+        "subtitle_variant": "",
+        "meeting": {
+            "datum": datum,
+            "titel": meeting_title,
+            "moderator": moderator,
+            "teilnehmer": teilnehmer,
+        },
+    }
+
+    sections: list[dict] = []
+
+    sections.append(
+        {
+            **sec_common,
+            "layout": "rapport_intro",
+            "tables": {
+                "besprochene_themen": [_to_dict(row) for row in (r.besprochene_themen or [])]
+                or _placeholders_discussed(),
+                "aufgabenbeurteilung": [_to_dict(row) for row in (r.aufgabenbeurteilung or [])]
+                or _placeholders_open_tasks(),
+            },
+            "page_number": f"{page:03d}",
+        }
+    )
+    page += 1
+
+    sections.append(
+        {
+            **sec_common,
+            "layout": "rapport_continue",
+            "tables": {
+                "neue_aufgaben": [_to_dict(row) for row in (r.neue_aufgaben or [])] or _placeholders_new_tasks(),
+                "wichtige_entscheidungen": [_to_dict(row) for row in (r.wichtige_entscheidungen or [])]
+                or _placeholders_decisions(),
+            },
+            "fazit": fazit if fazit_inline_ok else "",
+            "fazit_inline": fazit_inline_ok,
+            "page_number": f"{page:03d}",
+        }
+    )
+    page += 1
+
+    if not fazit_inline_ok and fazit_blocks:
+        fazit_page_units = int(os.getenv("PDF_RAPPORT_FAZIT_PAGE_UNITS", str(max(20, continue_units_budget - 4))))
+        pages = _paginate_units(
+            fazit_blocks,
+            max_units=fazit_page_units,
+            chars_per_line=continue_chars_per_line,
+            merge_small_last=False,
+        )
+        for idx, pg in enumerate(pages):
+            html = _blocks_to_html(pg)
+            if not html.strip():
+                continue
+            sections.append(
+                {
+                    **sec_common,
+                    "layout": "rapport_fazit",
+                    "fazit_title": "Fazit/Zusammenfassung" if idx == 0 else "Fazit/Zusammenfassung (Fortsetzung)",
+                    "fazit_html": html,
+                    "page_number": f"{page:03d}",
+                }
+            )
+            page += 1
+
+    return sections
 
 
 def _render_pdf_bytes(req: DocumentRequest) -> bytes:

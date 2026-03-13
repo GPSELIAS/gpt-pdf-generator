@@ -1,0 +1,27 @@
+<section class="page page--content tc-page tc-page--continue rp-page rp-page--fazit">
+  <div class="tc-header-band" aria-hidden="true"></div>
+  <div class="tc-left-band" aria-hidden="true"></div>
+
+  <img class="tc-header-logo tc-header-logo--continue" src="assets/gpsholding.png" alt="GPS Group Holding" />
+  <div class="tc-header-left tc-header-left--continue">GPS Group Holding</div>
+  <div class="tc-header-right tc-header-right--continue">Nister GmbH 2026</div>
+
+  <div class="tc-chapter tc-chapter--continue">
+    <div class="tc-chapter__title tc-chapter__title--continue {{ section.title_variant|default('tc-title--md') }}">{{ section.title }}</div>
+    {% if section.subheading %}
+      <div class="tc-chapter__subtitle tc-chapter__subtitle--continue {{ section.subtitle_variant|default('') }}">{{ section.subheading }}</div>
+    {% endif %}
+  </div>
+
+  <div class="tc-body-left tc-body-left--continue rp-body">
+    <h2 class="rp-h2">{{ section.fazit_title|default("Fazit/Zusammenfassung") }}</h2>
+    <div class="rp-summary">
+      {{ section.fazit_html | safe }}
+    </div>
+  </div>
+
+  <div class="tc-footer-line" aria-hidden="true"></div>
+  <div class="tc-footer-left">{{ footer_text|default("Kompetenz und Qualität auf höchstem Niveau") }}</div>
+  <div class="tc-footer-page">{{ section.page_number|default("") }}</div>
+  <div class="tc-footer-page-underline" aria-hidden="true"></div>
+</section>

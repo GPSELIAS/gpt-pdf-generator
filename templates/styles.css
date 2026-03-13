@@ -272,7 +272,7 @@ body {
 
 .closing-photo {
   position: absolute;
-  top: 50.4mm;
+  top: 54mm;
   left: 0;
   width: 297mm;
   height: 369.6mm;
@@ -295,7 +295,7 @@ body {
 }
 
 .closing-panel--veil {
-  top: 182.7mm; /* measured y start */
+  top: 174.7mm; /* nudged up for visibility */
   height: 167.5mm; /* until footer starts */
   background: rgba(195, 120, 5, 0.56);
 }
@@ -303,7 +303,7 @@ body {
 .closing-message {
   position: absolute;
   left: 26.9mm; /* measured from title bbox */
-  top: 215.2mm; /* measured from title bbox */
+  top: 207.2mm; /* nudged up for visibility */
   width: 165mm;
   z-index: 3;
   color: #0b0b0b;
@@ -328,7 +328,7 @@ body {
 }
 
 .closing-panel--footer {
-  top: 350.2mm; /* measured footer start */
+  top: 342.2mm; /* nudged up for visibility */
   height: 69.8mm;
   background: #c37805; /* sampled from template */
   z-index: 4;
@@ -767,4 +767,185 @@ body {
   height: 0.79mm;
   background: #000;
   z-index: 2;
+}
+
+/* =========================================================
+   RAPPORT (Type C-derived) — Inter-only + table placeholders
+   ========================================================= */
+
+.rp-page,
+.rp-page * {
+  font-family: Inter, Arial, Helvetica, sans-serif !important;
+}
+
+.rp-body {
+  font-size: 10.8pt;
+  line-height: 1.35;
+  color: var(--ink);
+  hyphens: auto;
+  overflow-wrap: anywhere;
+}
+
+.rp-h2 {
+  margin: 10pt 0 6pt 0;
+  font-size: 11pt;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: 0.8pt;
+  color: var(--ink);
+  text-transform: uppercase;
+  break-after: avoid;
+}
+
+.rp-meta {
+  margin: 0 0 10pt 0;
+  padding: 10pt 10pt;
+  background: var(--box-bg);
+  border-radius: 1.5mm;
+}
+
+.rp-meta__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6pt 12pt;
+}
+
+.rp-meta__label {
+  font-size: 9.5pt;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: 0.7pt;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.rp-meta__value {
+  margin-top: 2pt;
+  font-size: 10.2pt;
+  line-height: 1.25;
+  font-weight: 500;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.rp-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 0 0 12pt 0;
+}
+
+.rp-table th {
+  background: var(--accent);
+  color: var(--ink);
+  font-size: 9.6pt;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: 0.55pt;
+  text-transform: uppercase;
+  padding: 6pt 6pt;
+  border: 0.6pt solid rgba(11, 22, 51, 0.35);
+  vertical-align: top;
+}
+
+.rp-table td {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  font-size: 9.6pt;
+  line-height: 1.22;
+  font-weight: 500;
+  padding: 6pt 6pt;
+  border: 0.6pt solid rgba(11, 22, 51, 0.22);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.rp-table--topics th:nth-child(1),
+.rp-table--topics td:nth-child(1) {
+  width: 18%;
+}
+.rp-table--topics th:nth-child(2),
+.rp-table--topics td:nth-child(2) {
+  width: 56%;
+}
+.rp-table--topics th:nth-child(3),
+.rp-table--topics td:nth-child(3) {
+  width: 26%;
+}
+
+.rp-table--open-tasks th:nth-child(1),
+.rp-table--open-tasks td:nth-child(1) {
+  width: 30%;
+}
+.rp-table--open-tasks th:nth-child(2),
+.rp-table--open-tasks td:nth-child(2) {
+  width: 18%;
+}
+.rp-table--open-tasks th:nth-child(3),
+.rp-table--open-tasks td:nth-child(3) {
+  width: 14%;
+}
+.rp-table--open-tasks th:nth-child(4),
+.rp-table--open-tasks td:nth-child(4) {
+  width: 38%;
+}
+
+.rp-table--new-tasks th:nth-child(1),
+.rp-table--new-tasks td:nth-child(1) {
+  width: 42%;
+}
+.rp-table--new-tasks th:nth-child(2),
+.rp-table--new-tasks td:nth-child(2) {
+  width: 18%;
+}
+.rp-table--new-tasks th:nth-child(3),
+.rp-table--new-tasks td:nth-child(3) {
+  width: 16%;
+}
+.rp-table--new-tasks th:nth-child(4),
+.rp-table--new-tasks td:nth-child(4) {
+  width: 24%;
+}
+
+.rp-table--decisions th:nth-child(1),
+.rp-table--decisions td:nth-child(1) {
+  width: 26%;
+}
+.rp-table--decisions th:nth-child(2),
+.rp-table--decisions td:nth-child(2) {
+  width: 44%;
+}
+.rp-table--decisions th:nth-child(3),
+.rp-table--decisions td:nth-child(3) {
+  width: 30%;
+}
+
+.rp-summary {
+  background: var(--box-bg);
+  border-radius: 1.5mm;
+  padding: 10pt 10pt;
+  font-size: 10.6pt;
+  line-height: 1.35;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.rp-summary > :first-child {
+  margin-top: 0;
+}
+
+.rp-summary p {
+  margin: 0 0 10pt 0;
+}
+
+.rp-summary ul,
+.rp-summary ol {
+  margin: 0 0 10pt 0;
+  padding-left: 16pt;
+  list-style-position: outside;
+}
+
+.rp-summary li {
+  margin: 0 0 6pt 0;
 }

@@ -1,0 +1,71 @@
+<section class="page page--content tc-page tc-page--continue rp-page rp-page--continue">
+  <div class="tc-header-band" aria-hidden="true"></div>
+  <div class="tc-left-band" aria-hidden="true"></div>
+
+  <img class="tc-header-logo tc-header-logo--continue" src="assets/gpsholding.png" alt="GPS Group Holding" />
+  <div class="tc-header-left tc-header-left--continue">GPS Group Holding</div>
+  <div class="tc-header-right tc-header-right--continue">Nister GmbH 2026</div>
+
+  <div class="tc-chapter tc-chapter--continue">
+    <div class="tc-chapter__title tc-chapter__title--continue {{ section.title_variant|default('tc-title--md') }}">{{ section.title }}</div>
+    {% if section.subheading %}
+      <div class="tc-chapter__subtitle tc-chapter__subtitle--continue {{ section.subtitle_variant|default('') }}">{{ section.subheading }}</div>
+    {% endif %}
+  </div>
+
+  <div class="tc-body-left tc-body-left--continue rp-body">
+    <h2 class="rp-h2">Neue Aufgaben</h2>
+    <table class="rp-table rp-table--new-tasks">
+      <thead>
+        <tr>
+          <th>Neue Aufgabe</th>
+          <th>Verantwortlich</th>
+          <th>Priorität</th>
+          <th>Fällig bis</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in section.tables.neue_aufgaben %}
+          <tr>
+            <td>{{ row.neue_aufgabe }}</td>
+            <td>{{ row.verantwortlich }}</td>
+            <td>{{ row.prioritaet }}</td>
+            <td>{{ row.faellig_bis }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2 class="rp-h2">Wichtige Entscheidungen</h2>
+    <table class="rp-table rp-table--decisions">
+      <thead>
+        <tr>
+          <th>Entscheidung</th>
+          <th>Hintergrund</th>
+          <th>Verantwortlich für Umsetzung</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in section.tables.wichtige_entscheidungen %}
+          <tr>
+            <td>{{ row.entscheidung }}</td>
+            <td>{{ row.hintergrund }}</td>
+            <td>{{ row.verantwortlich }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if section.fazit_inline %}
+      <h2 class="rp-h2">Fazit/Zusammenfassung</h2>
+      <div class="rp-summary">
+        {{ section.fazit }}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="tc-footer-line" aria-hidden="true"></div>
+  <div class="tc-footer-left">{{ footer_text|default("Kompetenz und Qualität auf höchstem Niveau") }}</div>
+  <div class="tc-footer-page">{{ section.page_number|default("") }}</div>
+  <div class="tc-footer-page-underline" aria-hidden="true"></div>
+</section>

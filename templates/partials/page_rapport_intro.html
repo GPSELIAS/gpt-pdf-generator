@@ -1,0 +1,85 @@
+<section class="page page--content tc-page tc-page--continue rp-page rp-page--intro">
+  <div class="tc-header-band" aria-hidden="true"></div>
+  <div class="tc-left-band" aria-hidden="true"></div>
+
+  <img class="tc-header-logo tc-header-logo--continue" src="assets/gpsholding.png" alt="GPS Group Holding" />
+  <div class="tc-header-left tc-header-left--continue">GPS Group Holding</div>
+  <div class="tc-header-right tc-header-right--continue">Nister GmbH 2026</div>
+
+  <div class="tc-chapter tc-chapter--continue">
+    <div class="tc-chapter__title tc-chapter__title--continue {{ section.title_variant|default('tc-title--md') }}">{{ section.title }}</div>
+    {% if section.subheading %}
+      <div class="tc-chapter__subtitle tc-chapter__subtitle--continue {{ section.subtitle_variant|default('') }}">{{ section.subheading }}</div>
+    {% endif %}
+  </div>
+
+  <div class="tc-body-left tc-body-left--continue rp-body">
+    <div class="rp-meta">
+      <div class="rp-meta__grid">
+        <div class="rp-meta__item">
+          <div class="rp-meta__label">Datum</div>
+          <div class="rp-meta__value">{{ section.meeting.datum }}</div>
+        </div>
+        <div class="rp-meta__item">
+          <div class="rp-meta__label">Meeting</div>
+          <div class="rp-meta__value">{{ section.meeting.titel }}</div>
+        </div>
+        <div class="rp-meta__item">
+          <div class="rp-meta__label">Moderator</div>
+          <div class="rp-meta__value">{{ section.meeting.moderator }}</div>
+        </div>
+        <div class="rp-meta__item">
+          <div class="rp-meta__label">Teilnehmer</div>
+          <div class="rp-meta__value">{{ section.meeting.teilnehmer | join(", ") }}</div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="rp-h2">Besprochene Themen</h2>
+    <table class="rp-table rp-table--topics">
+      <thead>
+        <tr>
+          <th>Thema</th>
+          <th>Beschreibung/Diskussion</th>
+          <th>Ergebnis</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in section.tables.besprochene_themen %}
+          <tr>
+            <td>{{ row.thema }}</td>
+            <td>{{ row.beschreibung }}</td>
+            <td>{{ row.ergebnis }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2 class="rp-h2">Aufgabenbeurteilung (offene Aufgaben aus letztem Meeting)</h2>
+    <table class="rp-table rp-table--open-tasks">
+      <thead>
+        <tr>
+          <th>Aufgabe</th>
+          <th>Verantwortlich</th>
+          <th>Status</th>
+          <th>Bewertung/Reflexion</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in section.tables.aufgabenbeurteilung %}
+          <tr>
+            <td>{{ row.aufgabe }}</td>
+            <td>{{ row.verantwortlich }}</td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.bewertung }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tc-footer-line" aria-hidden="true"></div>
+  <div class="tc-footer-left">{{ footer_text|default("Kompetenz und Qualität auf höchstem Niveau") }}</div>
+  <div class="tc-footer-page">{{ section.page_number|default("") }}</div>
+  <div class="tc-footer-page-underline" aria-hidden="true"></div>
+</section>

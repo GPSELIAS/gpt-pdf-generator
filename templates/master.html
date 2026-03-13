@@ -15,6 +15,12 @@
         {% include "partials/page_type_c_intro.html" %}
       {% elif section.layout == "type_c_continue" %}
         {% include "partials/page_type_c_continue.html" %}
+      {% elif section.layout == "rapport_intro" %}
+        {% include "partials/page_rapport_intro.html" %}
+      {% elif section.layout == "rapport_continue" %}
+        {% include "partials/page_rapport_continue.html" %}
+      {% elif section.layout == "rapport_fazit" %}
+        {% include "partials/page_rapport_fazit.html" %}
       {% endif %}
     {% endfor %}
 
