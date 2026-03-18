@@ -128,6 +128,46 @@ def _normalize_text(text: str) -> str:
     return text
 
 
+def _split_text_chunks(text: str, *, max_chars: int) -> list[str]:
+    """
+    Split very long text into smaller chunks so pagination can stay robust.
+    Tries to cut at sentence boundaries, otherwise falls back to whitespace.
+    """
+    t = _compact_ws(text)
+    if not t:
+        return []
+    if len(t) <= max_chars:
+        return [t]
+
+    chunks: list[str] = []
+    s = t
+    while s:
+        if len(s) <= max_chars:
+            chunks.append(s.strip())
+            break
+
+        cut = max_chars
+        window = s[: max_chars + 1]
+
+        # Prefer a sentence boundary close to the end of the window.
+        # Reverse-search: ". " / "! " / "? " before an uppercase/number start.
+        m = re.search(r"[\.\!\?]\s+(?=[A-ZÄÖÜ0-9])", window[::-1])
+        if m:
+            idx_from_end = m.start()
+            cut = max(140, max_chars - idx_from_end - 1)
+        else:
+            ws = window.rfind(" ")
+            if ws >= 140:
+                cut = ws
+
+        chunk = s[:cut].strip()
+        if chunk:
+            chunks.append(chunk)
+        s = s[cut:].strip()
+
+    return [c for c in chunks if c]
+
+
 def _split_paragraphs(text: str) -> list[str]:
     text = _normalize_text(text)
     if not text:
@@ -169,7 +209,22 @@ def _split_paragraphs(text: str) -> list[str]:
     for p in paragraphs:
         expanded.extend(expand_inline_list(p))
 
-    return expanded
+    # Hardening: ensure single giant paragraphs don't break pagination.
+    # We only split paragraphs that are not obvious list markers / headings.
+    hardened: list[str] = []
+    for p in expanded:
+        s = _compact_ws(p)
+        if not s:
+            continue
+        if _MD_HEADING_RE.match(s) or _NUMBERED_HEADING_RE.match(s) or _LIST_ITEM_RE.match(s):
+            hardened.append(p.strip())
+            continue
+        if len(s) > 900:
+            hardened.extend(_split_text_chunks(s, max_chars=420))
+        else:
+            hardened.append(p.strip())
+
+    return hardened
 
 
 _LIST_ITEM_RE = re.compile(r"^(\d+[\.\)]|[-•])\s+")
@@ -691,6 +746,7 @@ def _subtitle_variant(subtitle: str) -> str:
 def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[dict]:
 
     sections = []
+    footer_text = "Kompetenz und Qualität auf höchstem Niveau"
     # Backwards compatible: if only *_BUDGET_WORDS is set, derive a conservative unit budget.
     intro_words_budget = int(os.getenv("PDF_TYPEC_INTRO_BUDGET_WORDS", "260"))
     continue_words_budget = int(os.getenv("PDF_TYPEC_CONTINUE_BUDGET_WORDS", "420"))
@@ -705,81 +761,284 @@ def _build_type_c_sections(req: DocumentRequest, chapters: list[dict]) -> list[d
     page_start = int(os.getenv("PDF_PAGE_START", "1"))
     page = page_start
 
+    _MM_TO_CSS_PX = 96.0 / 25.4
+    _INTRO_BODY_MAX_PX = 128.0 * _MM_TO_CSS_PX
+    _CONT_BODY_MAX_PX = 236.0 * _MM_TO_CSS_PX
+    _SIDEBAR_MAX_PX = 155.71 * _MM_TO_CSS_PX
+
+    measure_tpl = env.from_string(
+        """
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>measure</title>
+    <link rel="stylesheet" href="templates/styles.css" />
+    <style>
+      /* Measurement-only: let boxes expand to natural height. */
+      .tc-body-left--intro,
+      .tc-body-left--continue,
+      .tc-chapter--intro,
+      .tc-chapter--continue {
+        max-height: none !important;
+        overflow: visible !important;
+      }
+      .tc-sidebar--intro,
+      .tc-sidebar__inner {
+        height: auto !important;
+        overflow: visible !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Avoid an initial blank page from .page--content break-before rules -->
+    <section class="page page--cover"></section>
+    {% include partial_name %}
+  </body>
+</html>
+""".strip()
+    )
+
+    def _iter_boxes(box):
+        yield box
+        for ch in getattr(box, "children", []) or []:
+            yield from _iter_boxes(ch)
+
+    def _box_bottom(box) -> float:
+        return float(getattr(box, "position_y", 0.0)) + float(getattr(box, "height", 0.0))
+
+    def _find_box_by_class(root, class_name: str):
+        for b in _iter_boxes(root):
+            el = getattr(b, "element", None)
+            if el is None:
+                continue
+            try:
+                cls = (el.get("class") or "").split()
+            except Exception:
+                continue
+            if class_name in cls:
+                return b
+        return None
+
+    def _page_overflows(
+        *,
+        partial_name: str,
+        section: dict,
+        body_class: str,
+        sidebar_inner_class: str | None,
+        body_max_px: float,
+        sidebar_max_px: float | None,
+    ) -> bool:
+        rendered = measure_tpl.render(partial_name=partial_name, section=section, footer_text=footer_text)
+        doc = HTML(string=rendered, base_url=str(BASE_DIR)).render()
+        if not getattr(doc, "pages", None):
+            return False
+        last = doc.pages[-1]
+        root = getattr(last, "_page_box", None)
+        if root is None:
+            return False
+
+        eps = 2.0  # CSS px-ish tolerance
+        body_box = _find_box_by_class(root, body_class)
+        if body_box is not None:
+            if float(getattr(body_box, "height", 0.0)) > (float(body_max_px) + eps):
+                return True
+
+        if sidebar_inner_class and sidebar_max_px:
+            sb = _find_box_by_class(root, sidebar_inner_class)
+            if sb is not None:
+                if float(getattr(sb, "height", 0.0)) > (float(sidebar_max_px) + eps):
+                    return True
+
+        return False
+
+    def _pre_split_blocks(blocks: list[_Block]) -> list[_Block]:
+        """
+        Ensure no single block is so large it can't fit on a page.
+        We do not split headings (they should fit via title scaling).
+        """
+        out: list[_Block] = []
+        for b in blocks:
+            if b["kind"] == "paragraph":
+                t = _compact_ws(b.get("text") or "")
+                if len(t) > 520:
+                    for chunk in _split_text_chunks(t, max_chars=420):
+                        out.append({"kind": "paragraph", "text": chunk, "level": 0, "items": []})
+                else:
+                    out.append(b)
+                continue
+            if b["kind"] == "list":
+                items = [it for it in (b.get("items") or []) if (it or "").strip()]
+                if len(items) > 10:
+                    step = 8
+                    for i0 in range(0, len(items), step):
+                        out.append({"kind": "list", "items": items[i0 : i0 + step], "text": "", "level": 0})
+                else:
+                    out.append({"kind": "list", "items": items, "text": "", "level": 0})
+                continue
+            out.append(b)
+        return out
+
+    def _fit_blocks_for_page(
+        *,
+        partial_name: str,
+        body_class: str,
+        sidebar_inner_class: str | None,
+        base_section: dict,
+        blocks: list[_Block],
+        min_take: int = 0,
+    ) -> int:
+        """
+        Return the max number of blocks (prefix) that fit in the page containers.
+        """
+        blocks = _pre_split_blocks(blocks)
+        if not blocks:
+            return 0
+
+        lo = max(0, int(min_take))
+        hi = len(blocks)
+
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            cand_blocks = blocks[:mid]
+            cand_section = {**base_section, "body_left": _blocks_to_html(cand_blocks)}
+            if _page_overflows(
+                partial_name=partial_name,
+                section=cand_section,
+                body_class=body_class,
+                sidebar_inner_class=sidebar_inner_class,
+                body_max_px=(
+                    _INTRO_BODY_MAX_PX
+                    if body_class == "tc-body-left--intro"
+                    else _CONT_BODY_MAX_PX
+                    if body_class == "tc-body-left--continue"
+                    else _CONT_BODY_MAX_PX
+                ),
+                sidebar_max_px=_SIDEBAR_MAX_PX if sidebar_inner_class else None,
+            ):
+                hi = mid - 1
+            else:
+                lo = mid
+
+        return lo
+
     for chapter_no, chapter in enumerate(chapters, start=1):
         raw_title = (chapter.get("title") or "").strip() or (req.title.strip() or "Dokument")
         base_title = _strip_leading_number(raw_title) or raw_title
         chapter_title = f"{chapter_no}. {base_title}" if auto_number_chapters else raw_title
         title_variant = _title_variant(chapter_title)
-        blocks: list[_Block] = chapter.get("blocks") or []
+        blocks: list[_Block] = _pre_split_blocks(chapter.get("blocks") or [])
         chapter_subheading = (chapter.get("subheading") or "").strip()
         subtitle_variant = _subtitle_variant(chapter_subheading or req.subtitle)
         intro_text, remaining_blocks = _pick_intro_text(blocks)
+        remaining_blocks = _pre_split_blocks(remaining_blocks)
 
-        # Intro page body is a subset; remainder flows into continue pages
-        intro_pages = (
-            _paginate_units(
-                remaining_blocks,
-                max_units=intro_units_budget,
-                chars_per_line=intro_chars_per_line,
-                merge_small_last=False,
-            )
-            if remaining_blocks
-            else []
-        )
-        intro_body_blocks = intro_pages[0] if intro_pages else []
-        rest_blocks = []
-        if intro_pages and len(intro_pages) > 1:
-            for pg in intro_pages[1:]:
-                rest_blocks.extend(pg)
-
-        sidebar_items = _make_sidebar_items(intro_text, blocks)
         section_label = f"KAPITEL {chapter_no}" if auto_number_chapters else _extract_section_label(chapter_title)
-        # Dynamic overview title + label (previously hardcoded -> always identical).
         overview_title = section_label or "OVERVIEW"
-        # Use chapter title without leading numbering as the overview label (icon row).
         overview_label = base_title or chapter_title
+
+        base_intro_section = {
+            "layout": "type_c_intro",
+            "intro_title": overview_title,
+            "intro_label": overview_label,
+            "title": chapter_title,
+            "title_variant": title_variant,
+            "section_label": section_label,
+            "intro": intro_text,
+            "subheading": chapter_subheading or req.subtitle,
+            "subtitle_variant": subtitle_variant,
+            "sidebar_items": [],
+            "page_number": f"{page:03d}",
+        }
+
+        base_continue_section = {
+            "layout": "type_c_continue",
+            "title": chapter_title,
+            "title_variant": title_variant,
+            "subheading": chapter_subheading or req.subtitle,
+            "subtitle_variant": subtitle_variant,
+            "sidebar_items": [],
+            "page_number": f"{page:03d}",
+        }
+
+        # Sidebar content is computed from the full chapter (intro + remaining blocks)
+        sidebar_items = _make_sidebar_items(intro_text, blocks)
+        base_intro_section["sidebar_items"] = sidebar_items
+
+        # Fit intro body blocks using real layout measurement (prevents clipping).
+        take_intro = 0
+        if remaining_blocks:
+            take_intro = _fit_blocks_for_page(
+                partial_name="partials/page_type_c_intro.html",
+                body_class="tc-body-left--intro",
+                sidebar_inner_class="tc-sidebar__inner" if sidebar_items else None,
+                base_section=base_intro_section,
+                blocks=remaining_blocks,
+            )
+        intro_body_blocks = remaining_blocks[:take_intro] if take_intro else []
+        rest_blocks = remaining_blocks[take_intro:] if take_intro else list(remaining_blocks)
 
         sections.append(
             {
-                "layout": "type_c_intro",
-                "intro_title": overview_title,
-                "intro_label": overview_label,
-                "title": chapter_title,
-                "title_variant": title_variant,
-                "section_label": section_label,
-                "intro": intro_text,
-                "subheading": chapter_subheading or req.subtitle,
-                "subtitle_variant": subtitle_variant,
+                **base_intro_section,
                 "body_left": _blocks_to_html(intro_body_blocks),
-                "sidebar_items": sidebar_items,
-                "page_number": f"{page:03d}",
             }
         )
         page += 1
 
-        if rest_blocks:
-            cont_pages = _paginate_units(
-                rest_blocks,
-                max_units=continue_units_budget,
-                chars_per_line=continue_chars_per_line,
-                merge_small_last=True,
+        # Continue pages: greedily fit as many blocks as possible per page (measured).
+        guard = 0
+        rest_blocks = _pre_split_blocks(rest_blocks)
+        while rest_blocks:
+            guard += 1
+            if guard > 5000:
+                # Safety against infinite loops on unexpected WeasyPrint behavior.
+                break
+
+            base_continue_section["page_number"] = f"{page:03d}"
+
+            take = _fit_blocks_for_page(
+                partial_name="partials/page_type_c_continue.html",
+                body_class="tc-body-left--continue",
+                sidebar_inner_class=None,
+                base_section=base_continue_section,
+                blocks=rest_blocks,
+                min_take=1,
             )
-            for pg in cont_pages:
-                html = _blocks_to_html(pg)
-                if not html.strip():
-                    continue
-                sections.append(
-                    {
-                        "layout": "type_c_continue",
-                        "title": chapter_title,
-                        "title_variant": title_variant,
-                        "subheading": chapter_subheading or req.subtitle,
-                        "subtitle_variant": subtitle_variant,
-                        "body_left": html,
-                        "sidebar_items": [],
-                        "page_number": f"{page:03d}",
-                    }
-                )
+
+            if take <= 0:
+                # Last resort: forcibly split the first block even further.
+                b0 = rest_blocks[0]
+                if b0["kind"] == "paragraph":
+                    chunks = _split_text_chunks(b0.get("text") or "", max_chars=220)
+                    if len(chunks) >= 2:
+                        rest_blocks = (
+                            [{"kind": "paragraph", "text": chunks[0], "level": 0, "items": []}]
+                            + [{"kind": "paragraph", "text": c, "level": 0, "items": []} for c in chunks[1:]]
+                            + rest_blocks[1:]
+                        )
+                        continue
+                if b0["kind"] == "list":
+                    items = list(b0.get("items") or [])
+                    if len(items) >= 2:
+                        rest_blocks = (
+                            [{"kind": "list", "items": items[:1], "text": "", "level": 0}]
+                            + [{"kind": "list", "items": items[1:2], "text": "", "level": 0}]
+                            + [{"kind": "list", "items": items[2:], "text": "", "level": 0}]
+                            + rest_blocks[1:]
+                        )
+                        continue
+
+                # If we still can't split, emit one block to avoid stalling.
+                take = 1
+
+            pg_blocks = rest_blocks[:take]
+            rest_blocks = rest_blocks[take:]
+
+            html = _blocks_to_html(pg_blocks)
+            if html.strip():
+                sections.append({**base_continue_section, "body_left": html, "sidebar_items": []})
                 page += 1
 
     return sections
